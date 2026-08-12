@@ -179,3 +179,94 @@ it does not receive or store the board payload. Sessions use random
 eight-character codes, allow one completed delivery, and expire after ten
 minutes. GitHub Pages remains the application host and direct project download
 remains the offline fallback.
+
+## P0 — Fully Responsive and Portrait-Ready Workspace
+
+Make every application surface adapt to the browser viewport, including
+portrait-oriented Surface Hubs, tablets, split-screen windows, and compact
+laptop browsers.
+
+Requirements:
+
+- Canvas and spatial view always fill the available viewport without clipping.
+- Header, tool rail, options, dialogs, and status controls reflow rather than
+  overlap at short, narrow, or portrait aspect ratios.
+- Preserve usable touch targets and safe areas in every orientation.
+- Recalculate Canvas and WebGL dimensions when the viewport or device
+  orientation changes.
+
+Acceptance criteria:
+
+- Core drawing, replay, transfer, settings, and 3D workflows remain reachable
+  at representative phone, tablet, desktop, and portrait Surface Hub sizes.
+- Rotating a device preserves board content, camera state, and selection.
+- No horizontal page scrolling or inaccessible off-screen controls.
+
+## P1 — Adjustable Overlay Transparency
+
+Move all application chrome onto a consistent, partially transparent glass
+system so the board stays visible beneath the header, tool rail, panels,
+dialogs, and floating controls.
+
+Requirements:
+
+- Drive overlay alpha from one semantic theme token.
+- Add one Settings slider that adjusts chrome opacity globally.
+- Maintain WCAG-readable contrast, visible focus states, and a safe opaque
+  fallback when browser blur effects are unavailable.
+- Persist the preference locally and include a one-click reset.
+
+Acceptance criteria:
+
+- The header, left tools, settings, menus, replay controls, and other overlays
+  respond together without changing canvas content.
+- Both bundled themes remain readable at the minimum and maximum setting.
+
+## P1 — Sparkly Multicolor Pen
+
+Add a delightful Surface Hub-inspired pen that lays down animated,
+multi-hued sparkle ink while retaining normal whiteboard performance.
+
+Requirements:
+
+- Offer the effect as an additional ink swatch/tool rather than replacing
+  existing pen colors.
+- Preserve pressure response, erasing, undo/redo, replay, export, and 3D
+  dimensional-ink rendering.
+- Use deterministic sparkle seeds so saved projects and replay are stable.
+- Respect reduced-motion preferences and provide a static multicolor fallback.
+
+Acceptance criteria:
+
+- Sparkle ink looks consistent across live drawing, reopened projects, replay,
+  PNG export, and spatial view.
+- Dense sparkle strokes remain responsive on a representative Surface Hub.
+
+## P2 — Theme-It Rapid Brand Sampling
+
+Let a facilitator build a temporary local theme pack on any machine by using a
+paint-brush sampler for three or four key colors and adding a logo.
+
+Proposed flow:
+
+1. Open **Theme-It** from the theme picker.
+2. Sample primary, accent, canvas, and optional surface colors from an
+   on-screen image or uploaded brand reference.
+3. Add or crop a logo and preview it across board chrome, ink, notes, replay,
+   transfer cards, and spatial view.
+4. Save the generated theme locally, export it as a portable theme pack, or
+   reset to a bundled theme.
+
+Requirements:
+
+- All sampling and logo processing happen locally by default.
+- Automatically derive readable foreground, border, hover, and status colors.
+- Warn and suggest corrections when contrast is insufficient.
+- Keep generated themes compatible with the existing semantic theme variables.
+
+Acceptance criteria:
+
+- A facilitator can create and apply a recognizable branded experience in
+  under two minutes without editing code.
+- Generated themes survive reload, can be exported/imported, and never alter
+  board content.

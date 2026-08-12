@@ -155,6 +155,19 @@ export function getReplayDuration(timeline: TimelineEvent[]): number {
   return Math.max(1200, end - start)
 }
 
+export function getReplayFade(
+  elapsed: number,
+  playbackDuration: number,
+  fadeDuration: number,
+): number {
+  if (elapsed <= playbackDuration) return 1
+  if (fadeDuration <= 0) return 0
+  return Math.max(
+    0,
+    Math.min(1, 1 - (elapsed - playbackDuration) / fadeDuration),
+  )
+}
+
 export function getAmbientReplayCamera(
   camera: Camera,
   elapsed: number,

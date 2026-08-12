@@ -4,7 +4,7 @@
 
 A local-first spatial thinking surface for touch displays, classrooms, studios, and collaborative workshops. It runs entirely in the browser and can be hosted on GitHub Pages without a server.
 
-## Current release — v0.6.2
+## Current release — v0.7.0
 
 - Pressure-aware pen and highlighter input
 - Infinite pan-and-zoom canvas with mouse, touch, and pen support
@@ -27,6 +27,8 @@ A local-first spatial thinking surface for touch displays, classrooms, studios, 
 - Persistent spatial transforms for object depth, X/Y tilt, rotation, and scale
   with quick layer actions, reset, keyboard depth nudging, and undo/redo
 - Switchable spatial grid, one-point, and two-point perspective guides
+- Streamlined header actions with media insertion kept in the left tool rail
+- Smooth replay fade-out at the end of manual and idle Session Replay
 
 ## Run locally
 

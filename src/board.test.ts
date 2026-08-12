@@ -4,6 +4,7 @@ import {
   createBoard,
   getAmbientReplayCamera,
   getReplayDuration,
+  getReplayFade,
   getReplayTimelineSinceLastClear,
   getSpatialTransform,
   isBoardDocument,
@@ -121,6 +122,13 @@ describe('board document events', () => {
     expect(start.scale).toBeCloseTo(camera.scale)
     expect(later).not.toEqual(start)
     expect(camera).toEqual({ x: 42, y: -18, scale: 1.4 })
+  })
+
+  it('fades a completed replay smoothly to the canvas background', () => {
+    expect(getReplayFade(5_000, 6_000, 1_200)).toBe(1)
+    expect(getReplayFade(6_600, 6_000, 1_200)).toBeCloseTo(0.5)
+    expect(getReplayFade(7_200, 6_000, 1_200)).toBe(0)
+    expect(getReplayFade(8_000, 6_000, 1_200)).toBe(0)
   })
 
   it('places transferred objects around a target with fresh identities', () => {

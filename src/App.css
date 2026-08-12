@@ -153,11 +153,6 @@
   width: 18px;
 }
 
-.header-actions .add-media-button {
-  border-color: var(--line);
-  background: white;
-}
-
 .header-actions .replay-button {
   color: white;
   border-color: #255d4c;
@@ -2369,14 +2364,12 @@ kbd {
 
   .brand-copy,
   .save-state,
-  .header-actions .add-media-button span,
   .header-actions .replay-button span,
   .header-actions .take-board-button span,
   .header-actions .receive-device-button span {
     display: none;
   }
 
-  .header-actions .add-media-button,
   .header-actions .replay-button,
   .header-actions .take-board-button,
   .header-actions .receive-device-button {
@@ -2575,8 +2568,7 @@ kbd {
 }
 
 .board-title input:hover,
-.board-title input:focus,
-.header-actions .add-media-button {
+.board-title input:focus {
   color: var(--brand-foreground);
   border-color: var(--brand-border);
   background: var(--brand-panel);

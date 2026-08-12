@@ -790,14 +790,6 @@ function App() {
             </button>
           </div>
           <button
-            className="add-media-button"
-            type="button"
-            onClick={() => imageInput.current?.click()}
-          >
-            <ImagePlus />
-            <span>Add media</span>
-          </button>
-          <button
             className="replay-button"
             type="button"
             disabled={board.items.length === 0}

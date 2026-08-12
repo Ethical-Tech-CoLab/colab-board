@@ -8,6 +8,7 @@ import {
 import { Pause, Play, RotateCcw, X } from 'lucide-react'
 import {
   getAmbientReplayCamera,
+  getReplayFade,
   getReplayDuration,
   getReplayTimelineSinceLastClear,
   replayAt,
@@ -48,7 +49,7 @@ export default function ReplayOverlay({
   )
   const sourceDuration = getReplayDuration(replayTimeline)
   const playbackDuration = Math.min(90_000, Math.max(6_000, sourceDuration))
-  const fadeDuration = autoLoop ? 1800 : 0
+  const fadeDuration = autoLoop ? 1800 : 1200
   const totalDuration = playbackDuration + fadeDuration
 
   const sceneItems = useMemo(
@@ -128,7 +129,7 @@ export default function ReplayOverlay({
         if (autoLoop) {
           next = 0
         } else {
-          next = playbackDuration
+          next = totalDuration
           setPlaying(false)
         }
       }
@@ -161,10 +162,7 @@ export default function ReplayOverlay({
     setPlaying(true)
   }
 
-  const fade =
-    elapsed > playbackDuration
-      ? Math.max(0, 1 - (elapsed - playbackDuration) / fadeDuration)
-      : 1
+  const fade = getReplayFade(elapsed, playbackDuration, fadeDuration)
 
   return (
     <section
