@@ -47,6 +47,7 @@ import {
 import CanvasBoard from './CanvasBoard'
 import DeviceTransferDialog from './DeviceTransferDialog'
 import ReplayOverlay from './ReplayOverlay'
+import SpatialInspector from './SpatialInspector'
 import TakeBoardDialog from './TakeBoardDialog'
 import { BRAND_THEMES, applyBrandTheme } from './branding'
 import {
@@ -55,9 +56,11 @@ import {
   createBoard,
   createId,
   fitImage,
+  getSpatialTransform,
   getItemBounds,
-  placeItemsAtCenter,
   isBoardDocument,
+  placeItemsAtCenter,
+  withSpatialTransform,
 } from './board'
 import { loadBoard, saveBoard } from './persistence'
 import {
@@ -86,6 +89,7 @@ const DEFAULT_PREFERENCES: Preferences = {
   screensaverMode: 'replay',
   brandTheme: 'ethical-tech',
   sceneMode: 'canvas',
+  perspectiveGuide: 'grid',
 }
 
 const TOOL_CONFIG: Array<{
@@ -170,10 +174,19 @@ function loadPreferences(): Preferences {
       parsed.brandTheme && parsed.brandTheme in BRAND_THEMES
         ? parsed.brandTheme
         : DEFAULT_PREFERENCES.brandTheme
+    const sceneMode =
+      parsed.sceneMode === 'spatial' ? 'spatial' : DEFAULT_PREFERENCES.sceneMode
+    const perspectiveGuide = (
+      ['none', 'grid', 'one-point', 'two-point'] as const
+    ).includes(parsed.perspectiveGuide ?? 'grid')
+      ? (parsed.perspectiveGuide ?? DEFAULT_PREFERENCES.perspectiveGuide)
+      : DEFAULT_PREFERENCES.perspectiveGuide
     return {
       ...DEFAULT_PREFERENCES,
       ...parsed,
       brandTheme,
+      sceneMode,
+      perspectiveGuide,
       color:
         typeof parsed.color === 'string'
           ? parsed.color
@@ -192,6 +205,7 @@ function App() {
   const [preferences, setPreferences] =
     useState<Preferences>(loadPreferences)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [spatialPreview, setSpatialPreview] = useState<BoardItem | null>(null)
   const [saveState, setSaveState] = useState<SaveState>('loading')
   const [loaded, setLoaded] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -338,6 +352,7 @@ function App() {
         at: Date.now(),
         itemId: id,
       })
+      setSpatialPreview(null)
       setSelectedId((current) => (current === id ? null : current))
     },
     [pushMutation],
@@ -351,6 +366,7 @@ function App() {
       future.current = [current, ...future.current.slice(0, 79)]
       return previous
     })
+    setSpatialPreview(null)
     setSelectedId(null)
   }, [])
 
@@ -362,6 +378,7 @@ function App() {
       past.current = [...past.current.slice(-79), current]
       return next
     })
+    setSpatialPreview(null)
     setSelectedId(null)
   }, [])
 
@@ -421,7 +438,11 @@ function App() {
         target?.tagName === 'INPUT' ||
         target?.tagName === 'TEXTAREA' ||
         target?.isContentEditable
-      if (isEditing) return
+      const isRangeDepthShortcut =
+        target instanceof HTMLInputElement &&
+        target.type === 'range' &&
+        (event.key === '[' || event.key === ']')
+      if (isEditing && !isRangeDepthShortcut) return
 
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
         event.preventDefault()
@@ -439,6 +460,24 @@ function App() {
         deleteItem(selectedId)
         return
       }
+      if (
+        preferences.sceneMode === 'spatial' &&
+        selectedId &&
+        (event.key === '[' || event.key === ']')
+      ) {
+        const selected = board.items.find((item) => item.id === selectedId)
+        if (selected) {
+          event.preventDefault()
+          const depth = getSpatialTransform(selected).depth
+          setSpatialPreview(null)
+          updateItem(
+            withSpatialTransform(selected, {
+              depth: depth + (event.key === ']' ? 20 : -20),
+            }),
+          )
+        }
+        return
+      }
       const shortcut: Partial<Record<string, Tool>> = {
         v: 'select',
         p: 'pen',
@@ -447,12 +486,24 @@ function App() {
         n: 'note',
       }
       const nextTool = shortcut[event.key.toLowerCase()]
-      if (nextTool) setTool(nextTool)
+      if (nextTool) {
+        setTool(nextTool)
+        setSpatialPreview(null)
+        setPreferences((current) => ({ ...current, sceneMode: 'canvas' }))
+      }
       if (event.key === '?') setHelpOpen(true)
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [deleteItem, redo, selectedId, undo])
+  }, [
+    board.items,
+    deleteItem,
+    preferences.sceneMode,
+    redo,
+    selectedId,
+    undo,
+    updateItem,
+  ])
 
   const addImageFiles = useCallback(
     async (files: FileList, center: { x: number; y: number }) => {
@@ -495,6 +546,8 @@ function App() {
     }),
     [camera],
   )
+  const selectedSpatialItem =
+    board.items.find((item) => item.id === selectedId) ?? null
 
   const exportProject = () => {
     downloadBoardProject(board)
@@ -843,6 +896,7 @@ function App() {
               aria-label={`${label} (${shortcut})`}
               title={`${label} · ${shortcut}`}
               onClick={() => {
+                setSpatialPreview(null)
                 setPreferences((current) => ({
                   ...current,
                   sceneMode: 'canvas',
@@ -904,7 +958,18 @@ function App() {
                 canvasTheme={activeTheme.canvas}
                 accentColor={activeTheme.inkColors[0]}
                 selectedId={selectedId}
-                onSelectionChange={setSelectedId}
+                previewItem={spatialPreview}
+                guideMode={preferences.perspectiveGuide}
+                onGuideModeChange={(perspectiveGuide) =>
+                  setPreferences((current) => ({
+                    ...current,
+                    perspectiveGuide,
+                  }))
+                }
+                onSelectionChange={(id) => {
+                  setSpatialPreview(null)
+                  setSelectedId(id)
+                }}
                 onActivity={markActivity}
               />
             </Suspense>
@@ -915,12 +980,13 @@ function App() {
               type="button"
               className={preferences.sceneMode === 'canvas' ? 'is-active' : ''}
               aria-pressed={preferences.sceneMode === 'canvas'}
-              onClick={() =>
+              onClick={() => {
+                setSpatialPreview(null)
                 setPreferences((current) => ({
                   ...current,
                   sceneMode: 'canvas',
                 }))
-              }
+              }}
             >
               <Pencil /> Canvas
             </button>
@@ -939,6 +1005,21 @@ function App() {
               <small>3D</small>
             </button>
           </div>
+
+          {preferences.sceneMode === 'spatial' && selectedSpatialItem && (
+            <SpatialInspector
+              item={selectedSpatialItem}
+              onPreview={setSpatialPreview}
+              onCommit={(item) => {
+                setSpatialPreview(null)
+                updateItem(item)
+              }}
+              onClose={() => {
+                setSpatialPreview(null)
+                setSelectedId(null)
+              }}
+            />
+          )}
 
           {preferences.sceneMode === 'canvas' &&
             (tool === 'pen' || tool === 'highlighter') && (
@@ -1283,10 +1364,16 @@ function App() {
                 <span>Zoom</span>
                 <kbd>Wheel / pinch</kbd>
               </div>
+              <div>
+                <Box />
+                <span>Spatial depth</span>
+                <kbd>[ / ]</kbd>
+              </div>
             </div>
             <p>
               Double-click with Select to create a note. Drop images directly
-              onto the canvas. Your work autosaves only on this device.
+              onto the canvas, then open Spatial view to orbit and shape the
+              scene. Your work autosaves only on this device.
             </p>
           </section>
         </div>

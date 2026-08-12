@@ -5,10 +5,53 @@ import type {
   ImageItem,
   NoteItem,
   StrokeItem,
+  SpatialTransform,
   TimelineEvent,
 } from './types'
 
 export const DEFAULT_CAMERA: Camera = { x: 0, y: 0, scale: 1 }
+export const DEFAULT_SPATIAL_TRANSFORM: SpatialTransform = {
+  depth: 0,
+  rotationX: 0,
+  rotationY: 0,
+  rotationZ: 0,
+  scale: 1,
+}
+
+function clamp(
+  value: number,
+  minimum: number,
+  maximum: number,
+  fallback = 0,
+): number {
+  return Number.isFinite(value)
+    ? Math.min(maximum, Math.max(minimum, value))
+    : fallback
+}
+
+export function getSpatialTransform(item: BoardItem): SpatialTransform {
+  const spatial = item.spatial
+  return {
+    depth: clamp(spatial?.depth ?? 0, -500, 500),
+    rotationX: clamp(spatial?.rotationX ?? 0, -70, 70),
+    rotationY: clamp(spatial?.rotationY ?? 0, -70, 70),
+    rotationZ: clamp(spatial?.rotationZ ?? 0, -180, 180),
+    scale: clamp(spatial?.scale ?? 1, 0.4, 2.4, 1),
+  }
+}
+
+export function withSpatialTransform(
+  item: BoardItem,
+  values: Partial<SpatialTransform>,
+): BoardItem {
+  return {
+    ...item,
+    spatial: getSpatialTransform({
+      ...item,
+      spatial: { ...getSpatialTransform(item), ...values },
+    }),
+  }
+}
 
 export function createId(prefix = 'item'): string {
   return `${prefix}-${crypto.randomUUID()}`

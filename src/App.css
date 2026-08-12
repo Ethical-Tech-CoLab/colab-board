@@ -307,10 +307,10 @@
   gap: 3px;
   padding: 4px;
   transform: translateX(-50%);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--brand-border);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--surface-raised) 88%, transparent);
-  box-shadow: var(--shadow-md);
+  background: color-mix(in srgb, var(--brand-panel) 88%, transparent);
+  box-shadow: var(--shadow);
   backdrop-filter: blur(18px);
 }
 
@@ -322,15 +322,15 @@
   padding: 0 14px;
   border: 0;
   border-radius: 999px;
-  color: var(--text-muted);
+  color: var(--brand-muted);
   background: transparent;
   font-size: 12px;
   font-weight: 700;
 }
 
 .scene-mode-switcher button.is-active {
-  color: var(--button-primary-text);
-  background: var(--button-primary-bg);
+  color: var(--brand-accent-ink);
+  background: var(--brand-accent);
   box-shadow: 0 6px 18px color-mix(in srgb, var(--brand-accent) 22%, transparent);
 }
 
@@ -351,7 +351,7 @@
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background: var(--canvas-bg);
+  background: var(--brand-canvas);
   touch-action: none;
 }
 
@@ -367,15 +367,51 @@
 }
 
 .spatial-badge,
-.spatial-hint {
+.spatial-hint,
+.perspective-guide-picker {
   position: absolute;
   z-index: 2;
   pointer-events: none;
   border: 1px solid color-mix(in srgb, var(--brand-accent) 24%, transparent);
-  color: var(--text-on-canvas);
-  background: color-mix(in srgb, var(--canvas-bg) 74%, transparent);
-  box-shadow: var(--shadow-md);
+  color: var(--brand-foreground);
+  background: color-mix(in srgb, var(--brand-canvas) 74%, transparent);
+  box-shadow: var(--shadow);
   backdrop-filter: blur(18px);
+}
+
+.perspective-guide-picker {
+  top: 128px;
+  left: 20px;
+  display: flex;
+  gap: 3px;
+  padding: 4px;
+  border-radius: 11px;
+  pointer-events: auto;
+}
+
+.perspective-guide-picker button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  color: var(--brand-muted);
+  background: transparent;
+}
+
+.perspective-guide-picker button:hover {
+  color: var(--brand-foreground);
+  background: color-mix(in srgb, var(--brand-accent) 10%, transparent);
+}
+
+.perspective-guide-picker button.is-active {
+  color: var(--brand-accent-ink);
+  background: var(--brand-accent);
+}
+
+.perspective-guide-picker svg {
+  width: 16px;
 }
 
 .spatial-badge {
@@ -414,7 +450,7 @@
   padding: 9px 15px;
   transform: translateX(-50%);
   border-radius: 999px;
-  color: var(--text-muted);
+  color: var(--brand-muted);
   font-size: 10px;
   white-space: nowrap;
 }
@@ -443,8 +479,8 @@
   transform: translate(-50%, -50%);
   border: 1px solid color-mix(in srgb, var(--brand-accent) 26%, transparent);
   border-radius: 18px;
-  color: var(--text-on-canvas);
-  background: color-mix(in srgb, var(--canvas-bg) 78%, transparent);
+  color: var(--brand-foreground);
+  background: color-mix(in srgb, var(--brand-canvas) 78%, transparent);
   text-align: center;
   backdrop-filter: blur(20px);
 }
@@ -456,9 +492,176 @@
 }
 
 .spatial-empty span {
-  color: var(--text-muted);
+  color: var(--brand-muted);
   font-size: 12px;
   line-height: 1.5;
+}
+
+.spatial-inspector {
+  position: absolute;
+  z-index: 13;
+  top: 76px;
+  right: 18px;
+  width: min(286px, calc(100% - 36px));
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--brand-accent) 25%, transparent);
+  border-radius: 17px;
+  color: var(--brand-foreground);
+  background: color-mix(in srgb, var(--brand-canvas) 80%, transparent);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(22px);
+}
+
+.spatial-inspector > header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 13px 11px;
+  border-bottom: 1px solid color-mix(in srgb, var(--brand-accent) 14%, transparent);
+}
+
+.spatial-inspector-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--brand-accent);
+  background: color-mix(in srgb, var(--brand-accent) 12%, transparent);
+}
+
+.spatial-inspector-icon svg {
+  width: 17px;
+}
+
+.spatial-inspector header > span:nth-child(2) {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+}
+
+.spatial-inspector header small {
+  color: var(--brand-accent);
+  font-size: 8px;
+  letter-spacing: 0.14em;
+}
+
+.spatial-inspector header strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spatial-inspector header > button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  color: var(--brand-muted);
+  background: transparent;
+}
+
+.spatial-inspector header > button:hover {
+  color: var(--brand-foreground);
+  background: color-mix(in srgb, var(--brand-accent) 10%, transparent);
+}
+
+.spatial-inspector header > button svg {
+  width: 16px;
+}
+
+.spatial-layer-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  padding: 12px 13px 6px;
+}
+
+.spatial-layer-actions button,
+.spatial-reset {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid color-mix(in srgb, var(--brand-accent) 18%, transparent);
+  border-radius: 9px;
+  color: var(--brand-foreground);
+  background: color-mix(in srgb, var(--brand-accent) 7%, transparent);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.spatial-layer-actions button:hover,
+.spatial-reset:hover {
+  border-color: color-mix(in srgb, var(--brand-accent) 42%, transparent);
+  background: color-mix(in srgb, var(--brand-accent) 13%, transparent);
+}
+
+.spatial-layer-actions svg,
+.spatial-reset svg {
+  width: 14px;
+}
+
+.spatial-ranges {
+  display: grid;
+  gap: 10px;
+  padding: 10px 14px 13px;
+}
+
+.spatial-ranges label {
+  display: grid;
+  gap: 5px;
+}
+
+.spatial-ranges label > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--brand-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.spatial-ranges label svg {
+  width: 12px;
+}
+
+.spatial-ranges output {
+  margin-left: auto;
+  color: var(--brand-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.spatial-ranges input {
+  width: 100%;
+  accent-color: var(--brand-accent);
+}
+
+.spatial-reset {
+  width: calc(100% - 28px);
+  margin: 0 14px;
+}
+
+.spatial-inspector > p {
+  margin: 11px 14px 14px;
+  color: var(--brand-muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.spatial-inspector kbd {
+  padding: 1px 4px;
+  border: 1px solid color-mix(in srgb, var(--brand-accent) 24%, transparent);
+  border-radius: 4px;
+  color: var(--brand-foreground);
+  background: color-mix(in srgb, var(--brand-accent) 8%, transparent);
 }
 
 @media (max-width: 700px) {
@@ -474,6 +677,20 @@
   .spatial-badge {
     top: 62px;
     left: 10px;
+  }
+
+  .perspective-guide-picker {
+    top: 116px;
+    left: 10px;
+  }
+
+  .spatial-inspector {
+    top: auto;
+    right: 10px;
+    bottom: 96px;
+    width: min(270px, calc(100% - 20px));
+    max-height: calc(100% - 170px);
+    overflow-y: auto;
   }
 
   .spatial-hint {

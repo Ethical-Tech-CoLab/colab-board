@@ -5,9 +5,11 @@ import {
   getAmbientReplayCamera,
   getReplayDuration,
   getReplayTimelineSinceLastClear,
+  getSpatialTransform,
   isBoardDocument,
   placeItemsAtCenter,
   replayAt,
+  withSpatialTransform,
 } from './board'
 import { BRAND_THEMES } from './branding'
 import type { NoteItem, StrokeItem, TimelineEvent } from './types'
@@ -131,6 +133,24 @@ describe('board document events', () => {
     expect(placed[0]).not.toEqual(note)
     expect(note.x).toBe(20)
     expect(stroke.points[0]).toEqual({ x: 0, y: 0, pressure: 0.5, t: 0 })
+  })
+
+  it('normalizes persistent spatial transforms to usable limits', () => {
+    const transformed = withSpatialTransform(note, {
+      depth: 900,
+      rotationX: -90,
+      rotationY: 24,
+      scale: 0.1,
+    })
+
+    expect(getSpatialTransform(transformed)).toEqual({
+      depth: 500,
+      rotationX: -70,
+      rotationY: 24,
+      rotationZ: 0,
+      scale: 0.4,
+    })
+    expect(note.spatial).toBeUndefined()
   })
 })
 

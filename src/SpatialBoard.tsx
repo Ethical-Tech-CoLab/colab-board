@@ -1,16 +1,34 @@
 import { useEffect, useRef, useState } from 'react'
-import { Box, MousePointer2, Orbit, Sparkles } from 'lucide-react'
+import {
+  Box,
+  EyeOff,
+  Focus,
+  Grid3X3,
+  MousePointer2,
+  Orbit,
+  Sparkles,
+  Waypoints,
+} from 'lucide-react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { getItemBounds } from './board'
+import { getItemBounds, getSpatialTransform } from './board'
 import type { CanvasBrandTokens } from './branding'
-import type { BoardDocument, BoardItem, NoteItem, Point } from './types'
+import type {
+  BoardDocument,
+  BoardItem,
+  NoteItem,
+  PerspectiveGuide,
+  Point,
+} from './types'
 
 interface SpatialBoardProps {
   document: BoardDocument
   canvasTheme: CanvasBrandTokens
   accentColor: string
   selectedId: string | null
+  previewItem: BoardItem | null
+  guideMode: PerspectiveGuide
+  onGuideModeChange: (mode: PerspectiveGuide) => void
   onSelectionChange: (id: string | null) => void
   onActivity: () => void
 }
@@ -21,6 +39,7 @@ interface SceneRuntime {
   renderer: THREE.WebGLRenderer
   controls: OrbitControls
   content: THREE.Group
+  guide: THREE.Group | null
   selection: THREE.Box3Helper | null
 }
 
@@ -142,7 +161,14 @@ function createNoteTexture(note: NoteItem): THREE.CanvasTexture {
 
 function disposeObject(object: THREE.Object3D) {
   object.traverse((child) => {
-    if (!(child instanceof THREE.Mesh || child instanceof THREE.LineSegments)) {
+    if (
+      !(
+        child instanceof THREE.Mesh ||
+        child instanceof THREE.Line ||
+        child instanceof THREE.LineSegments ||
+        child instanceof THREE.Points
+      )
+    ) {
       return
     }
     child.geometry.dispose()
@@ -180,16 +206,30 @@ function createSpatialItem(
   group.position.set(
     (centerX - boardCenter.x) * WORLD_SCALE,
     -(centerY - boardCenter.y) * WORLD_SCALE,
-    index * 0.045,
   )
+  group.userData.itemIndex = index
 
   if (item.type === 'stroke') {
-    if (item.points.length < 2) return group
-    const geometry = createPressureGeometry(
-      item.points,
-      { x: centerX, y: centerY },
-      item.width,
+    if (item.points.length === 0) return group
+    const firstPoint = item.points[0]
+    const isDot = item.points.every(
+      (point) =>
+        Math.hypot(point.x - firstPoint.x, point.y - firstPoint.y) < 0.01,
     )
+    const geometry = isDot
+      ? new THREE.SphereGeometry(
+          item.width *
+            WORLD_SCALE *
+            Math.max(0.35, firstPoint.pressure || 0.5) *
+            0.52,
+          16,
+          12,
+        )
+      : createPressureGeometry(
+          item.points,
+          { x: centerX, y: centerY },
+          item.width,
+        )
     const material = new THREE.MeshStandardMaterial({
       color: item.color,
       emissive: item.color,
@@ -251,8 +291,25 @@ function createSpatialItem(
   }
 
   addItemId(group, item.id)
-  group.userData.baseZ = group.position.z
+  applySpatialTransform(group, item, index)
   return group
+}
+
+function applySpatialTransform(
+  group: THREE.Object3D,
+  item: BoardItem,
+  index: number,
+) {
+  const spatial = getSpatialTransform(item)
+  const baseZ = spatial.depth * WORLD_SCALE + index * 0.035
+  group.position.z = baseZ
+  group.rotation.set(
+    THREE.MathUtils.degToRad(spatial.rotationX),
+    THREE.MathUtils.degToRad(spatial.rotationY),
+    THREE.MathUtils.degToRad(spatial.rotationZ),
+  )
+  group.scale.setScalar(spatial.scale)
+  group.userData.baseZ = baseZ
 }
 
 function boardCenter(items: BoardItem[]): { x: number; y: number } {
@@ -286,11 +343,84 @@ function createStars(accentColor: string): THREE.Points {
   )
 }
 
+function guideLine(
+  points: THREE.Vector3[],
+  color: string,
+  opacity: number,
+): THREE.Line {
+  return new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(points),
+    new THREE.LineBasicMaterial({
+      color,
+      opacity,
+      transparent: true,
+    }),
+  )
+}
+
+function createPerspectiveGuide(
+  mode: PerspectiveGuide,
+  accentColor: string,
+): THREE.Group {
+  const group = new THREE.Group()
+  group.position.z = -1.6
+  group.userData.guide = true
+  if (mode === 'none') return group
+
+  if (mode === 'grid') {
+    const grid = new THREE.GridHelper(32, 32, accentColor, accentColor)
+    grid.rotation.x = Math.PI / 2
+    const material = grid.material as THREE.LineBasicMaterial
+    material.opacity = 0.16
+    material.transparent = true
+    group.add(grid)
+    return group
+  }
+
+  const horizonY = 1.4
+  group.add(
+    guideLine(
+      [
+        new THREE.Vector3(-16, horizonY, 0),
+        new THREE.Vector3(16, horizonY, 0),
+      ],
+      accentColor,
+      0.34,
+    ),
+  )
+
+  if (mode === 'one-point') {
+    const vanishingPoint = new THREE.Vector3(0, horizonY, 0)
+    for (let x = -14; x <= 14; x += 2) {
+      group.add(
+        guideLine(
+          [new THREE.Vector3(x, -9, 0), vanishingPoint],
+          accentColor,
+          x % 4 === 0 ? 0.24 : 0.12,
+        ),
+      )
+    }
+    return group
+  }
+
+  const left = new THREE.Vector3(-12, horizonY, 0)
+  const right = new THREE.Vector3(12, horizonY, 0)
+  for (let x = -10; x <= 10; x += 2) {
+    const origin = new THREE.Vector3(x, -8, 0)
+    group.add(guideLine([origin, left], accentColor, 0.16))
+    group.add(guideLine([origin, right], '#7b5cff', 0.16))
+  }
+  return group
+}
+
 export default function SpatialBoard({
   document: boardDocument,
   canvasTheme,
   accentColor,
   selectedId,
+  previewItem,
+  guideMode,
+  onGuideModeChange,
   onSelectionChange,
   onActivity,
 }: SpatialBoardProps) {
@@ -355,6 +485,7 @@ export default function SpatialBoard({
         renderer,
         controls,
         content,
+        guide: null,
         selection: null,
       }
       runtimeRef.current = runtime
@@ -412,6 +543,15 @@ export default function SpatialBoard({
               Math.sin(elapsed * 0.7 + index * 0.8) * 0.025
           })
         }
+        const selection = runtime?.selection
+        const selected = selection
+          ? content.children.find(
+              (child) => child.userData.itemId === selection.userData.itemId,
+            )
+          : null
+        if (selection && selected) {
+          selection.box.setFromObject(selected).expandByScalar(0.08)
+        }
         renderer.render(scene, camera)
       })
 
@@ -441,9 +581,18 @@ export default function SpatialBoard({
   useEffect(() => {
     const runtime = runtimeRef.current
     if (!runtime) return
-    runtime.selection?.parent?.remove(runtime.selection)
-    runtime.selection?.dispose()
-    runtime.selection = null
+    if (runtime.guide) {
+      runtime.scene.remove(runtime.guide)
+      disposeObject(runtime.guide)
+    }
+    const guide = createPerspectiveGuide(guideMode, accentColor)
+    runtime.guide = guide
+    runtime.scene.add(guide)
+  }, [accentColor, canvasTheme.background, guideMode])
+
+  useEffect(() => {
+    const runtime = runtimeRef.current
+    if (!runtime) return
     for (const child of [...runtime.content.children]) {
       runtime.content.remove(child)
       disposeObject(child)
@@ -453,7 +602,28 @@ export default function SpatialBoard({
     boardDocument.items.forEach((item, index) => {
       runtime.content.add(createSpatialItem(item, center, index))
     })
+  }, [accentColor, boardDocument.items, canvasTheme.background])
 
+  useEffect(() => {
+    const runtime = runtimeRef.current
+    if (!runtime || !previewItem) return
+    const group = runtime.content.children.find(
+      (child) => child.userData.itemId === previewItem.id,
+    )
+    if (!group) return
+    applySpatialTransform(
+      group,
+      previewItem,
+      Number(group.userData.itemIndex ?? 0),
+    )
+  }, [accentColor, canvasTheme.background, previewItem])
+
+  useEffect(() => {
+    const runtime = runtimeRef.current
+    if (!runtime) return
+    runtime.selection?.parent?.remove(runtime.selection)
+    runtime.selection?.dispose()
+    runtime.selection = null
     const selected = runtime.content.children.find(
       (child) => child.userData.itemId === selectedId,
     )
@@ -462,10 +632,17 @@ export default function SpatialBoard({
         new THREE.Box3().setFromObject(selected).expandByScalar(0.08),
         canvasTheme.selection,
       )
+      selection.userData.itemId = selectedId
       runtime.scene.add(selection)
       runtime.selection = selection
     }
-  }, [boardDocument.items, canvasTheme.selection, selectedId])
+  }, [
+    boardDocument.items,
+    canvasTheme.background,
+    canvasTheme.selection,
+    previewItem,
+    selectedId,
+  ])
 
   return (
     <div className="spatial-viewport" ref={containerRef}>
@@ -475,6 +652,28 @@ export default function SpatialBoard({
           <small>LIVE WEBGL</small>
           Dimensional ink
         </span>
+      </div>
+      <div className="perspective-guide-picker" aria-label="Perspective guide">
+        {(
+          [
+            ['none', 'No guide', EyeOff],
+            ['grid', 'Spatial grid', Grid3X3],
+            ['one-point', 'One-point perspective', Focus],
+            ['two-point', 'Two-point perspective', Waypoints],
+          ] as const
+        ).map(([mode, label, Icon]) => (
+          <button
+            key={mode}
+            type="button"
+            className={guideMode === mode ? 'is-active' : ''}
+            aria-label={label}
+            aria-pressed={guideMode === mode}
+            title={label}
+            onClick={() => onGuideModeChange(mode)}
+          >
+            <Icon />
+          </button>
+        ))}
       </div>
       {boardDocument.items.length === 0 && !error && (
         <div className="spatial-empty">

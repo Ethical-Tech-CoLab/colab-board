@@ -9,6 +9,15 @@ export type Tool =
 export type ScreensaverMode = 'replay' | 'drift' | 'galaxy'
 export type BrandThemeId = 'ethical-tech' | 'studio'
 export type SceneMode = 'canvas' | 'spatial'
+export type PerspectiveGuide = 'none' | 'grid' | 'one-point' | 'two-point'
+
+export interface SpatialTransform {
+  depth: number
+  rotationX: number
+  rotationY: number
+  rotationZ: number
+  scale: number
+}
 
 export interface Point {
   x: number
@@ -20,6 +29,7 @@ export interface Point {
 interface ItemBase {
   id: string
   createdAt: number
+  spatial?: SpatialTransform
 }
 
 export interface StrokeItem extends ItemBase {
@@ -103,6 +113,7 @@ export interface Preferences {
   screensaverMode: ScreensaverMode
   brandTheme: BrandThemeId
   sceneMode: SceneMode
+  perspectiveGuide: PerspectiveGuide
 }
 
 export type SaveState = 'loading' | 'saving' | 'saved' | 'error'
