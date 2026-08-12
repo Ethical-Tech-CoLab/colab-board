@@ -455,7 +455,7 @@ export default function SpatialBoard({
       })
       renderer.outputColorSpace = THREE.SRGBColorSpace
       renderer.shadowMap.enabled = true
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap
+      renderer.shadowMap.type = THREE.PCFShadowMap
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
       container.appendChild(renderer.domElement)
 
