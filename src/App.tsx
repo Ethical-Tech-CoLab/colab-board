@@ -21,6 +21,8 @@ import {
   Minus,
   MousePointer2,
   MoreHorizontal,
+  PanelRightClose,
+  PanelRightOpen,
   Pencil,
   Play,
   Plus,
@@ -170,6 +172,7 @@ function App() {
   const [loaded, setLoaded] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsCollapsed, setSettingsCollapsed] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [welcomeDismissed, setWelcomeDismissed] = useState(false)
   const [replay, setReplay] = useState<ReplayState | null>(null)
@@ -678,6 +681,7 @@ function App() {
                   type="button"
                   onClick={() => {
                     setSettingsOpen(true)
+                    setSettingsCollapsed(false)
                     setMenuOpen(false)
                   }}
                 >
@@ -864,19 +868,42 @@ function App() {
         </section>
 
         {settingsOpen && (
-          <aside className="settings-panel" aria-label="Board settings">
+          <aside
+            className={`settings-panel${settingsCollapsed ? ' is-collapsed' : ''}`}
+            aria-label="Board settings"
+          >
             <header>
               <div>
                 <span className="eyebrow">BOARD DETAILS</span>
                 <h2>Make it yours</h2>
               </div>
-              <button
-                type="button"
-                aria-label="Close settings"
-                onClick={() => setSettingsOpen(false)}
-              >
-                <X />
-              </button>
+              <div className="panel-actions">
+                <button
+                  className="panel-collapse"
+                  type="button"
+                  aria-label={
+                    settingsCollapsed
+                      ? 'Expand settings panel'
+                      : 'Collapse settings panel'
+                  }
+                  aria-expanded={!settingsCollapsed}
+                  onClick={() => setSettingsCollapsed((value) => !value)}
+                >
+                  {settingsCollapsed ? (
+                    <PanelRightOpen />
+                  ) : (
+                    <PanelRightClose />
+                  )}
+                </button>
+                <button
+                  className="panel-close"
+                  type="button"
+                  aria-label="Close settings"
+                  onClick={() => setSettingsOpen(false)}
+                >
+                  <X />
+                </button>
+              </div>
             </header>
 
             <label>

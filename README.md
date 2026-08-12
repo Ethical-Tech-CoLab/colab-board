@@ -1,15 +1,18 @@
 # Ethical Tech CoLab Board
 
+**[Open the live CoLab Board →](https://ethical-tech-colab.github.io/ethical-tech-colab-board/)**
+
 A local-first spatial thinking surface for touch displays, classrooms, studios, and collaborative workshops. It runs entirely in the browser and can be hosted on GitHub Pages without a server.
 
-## First release
+## Current release — v0.2.0
 
 - Pressure-aware pen and highlighter input
 - Infinite pan-and-zoom canvas with mouse, touch, and pen support
 - Sticky notes, images, eraser, selection, undo, and redo
 - IndexedDB autosave with portable JSON project files and PNG export
-- Event provenance and animated session replay
-- Idle replay, Ink Drift, and CoLab Galaxy screensavers
+- Event provenance and animated replay scoped to work after the latest clear
+- Continuously moving Session Replay, Ink Drift, and CoLab Galaxy screensavers
+- Collapsible right-hand board settings panel
 - Installable PWA with an offline application shell
 - Runtime-swappable brand themes with the Ethical Tech CoLab website identity
   active by default and the original Warm Studio identity included as a sample

@@ -6,7 +6,12 @@ import {
   useState,
 } from 'react'
 import { Pause, Play, RotateCcw, X } from 'lucide-react'
-import { getReplayDuration, replayAt } from './board'
+import {
+  getAmbientReplayCamera,
+  getReplayDuration,
+  getReplayTimelineSinceLastClear,
+  replayAt,
+} from './board'
 import type { BrandTheme } from './branding'
 import { drawScene, type ImageCache } from './render'
 import type { BoardDocument, ScreensaverMode } from './types'
@@ -37,7 +42,11 @@ export default function ReplayOverlay({
   const [size, setSize] = useState({ width: innerWidth, height: innerHeight })
   const [imageRevision, setImageRevision] = useState(0)
 
-  const sourceDuration = getReplayDuration(document.timeline)
+  const replayTimeline = useMemo(
+    () => getReplayTimelineSinceLastClear(document.timeline),
+    [document.timeline],
+  )
+  const sourceDuration = getReplayDuration(replayTimeline)
   const playbackDuration = Math.min(90_000, Math.max(6_000, sourceDuration))
   const fadeDuration = autoLoop ? 1800 : 0
   const totalDuration = playbackDuration + fadeDuration
@@ -70,15 +79,21 @@ export default function ReplayOverlay({
         ? 0
         : Math.min(1, elapsed / playbackDuration) * sourceDuration
     const frame =
-      document.timeline.length > 0
-        ? replayAt(document.timeline, sourceElapsed)
-        : { items: document.items, camera: { x: 0, y: 0, scale: 1 } }
+      replayTimeline.length > 0
+        ? replayAt(replayTimeline, sourceElapsed)
+        : {
+            items: document.timeline.length === 0 ? document.items : [],
+            camera: { x: 0, y: 0, scale: 1 },
+          }
+    const replayCamera = autoLoop
+      ? getAmbientReplayCamera(frame.camera, elapsed, size)
+      : frame.camera
     drawScene(
       context,
       size.width,
       size.height,
       frame.items,
-      frame.camera,
+      replayCamera,
       imageCache.current,
       {
         notes: true,
@@ -88,6 +103,7 @@ export default function ReplayOverlay({
       },
     )
   }, [
+    autoLoop,
     document.items,
     document.timeline,
     document.watermark,
@@ -95,6 +111,7 @@ export default function ReplayOverlay({
     imageRevision,
     mode,
     playbackDuration,
+    replayTimeline,
     size,
     sourceDuration,
     theme.canvas,

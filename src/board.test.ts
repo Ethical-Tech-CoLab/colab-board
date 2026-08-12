@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   applyItemEvent,
   createBoard,
+  getAmbientReplayCamera,
   getReplayDuration,
+  getReplayTimelineSinceLastClear,
   isBoardDocument,
   replayAt,
 } from './board'
@@ -91,6 +93,31 @@ describe('board document events', () => {
       0,
     )
     expect(frame.camera).toEqual(camera)
+  })
+
+  it('starts a replay after the most recent clear event', () => {
+    const timeline: TimelineEvent[] = [
+      { id: 'event-1', type: 'add', at: 1_000, item: note },
+      { id: 'clear-1', type: 'clear', at: 1_200 },
+      { id: 'event-2', type: 'add', at: 1_300, item: note },
+      { id: 'clear-2', type: 'clear', at: 1_400 },
+      { id: 'event-3', type: 'add', at: 1_500, item: stroke },
+    ]
+
+    expect(getReplayTimelineSinceLastClear(timeline)).toEqual([timeline[4]])
+  })
+
+  it('keeps an idle replay moving without changing the source camera', () => {
+    const camera = { x: 42, y: -18, scale: 1.4 }
+    const viewport = { width: 1_200, height: 800 }
+    const start = getAmbientReplayCamera(camera, 0, viewport)
+    const later = getAmbientReplayCamera(camera, 4_000, viewport)
+
+    expect(start.x).toBeCloseTo(camera.x)
+    expect(start.y).toBeCloseTo(camera.y)
+    expect(start.scale).toBeCloseTo(camera.scale)
+    expect(later).not.toEqual(start)
+    expect(camera).toEqual({ x: 42, y: -18, scale: 1.4 })
   })
 })
 

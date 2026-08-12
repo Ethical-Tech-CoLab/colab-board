@@ -92,6 +92,13 @@ export function replayAt(
   return { items, camera }
 }
 
+export function getReplayTimelineSinceLastClear(
+  timeline: TimelineEvent[],
+): TimelineEvent[] {
+  const lastClearIndex = timeline.findLastIndex((event) => event.type === 'clear')
+  return lastClearIndex >= 0 ? timeline.slice(lastClearIndex + 1) : timeline
+}
+
 export function getReplayDuration(timeline: TimelineEvent[]): number {
   if (timeline.length === 0) return 0
   const start = Math.min(...timeline.map((event) => event.at))
@@ -103,6 +110,29 @@ export function getReplayDuration(timeline: TimelineEvent[]): number {
     ),
   )
   return Math.max(1200, end - start)
+}
+
+export function getAmbientReplayCamera(
+  camera: Camera,
+  elapsed: number,
+  viewport: { width: number; height: number },
+): Camera {
+  const phase = elapsed / 2_800
+  const scale = camera.scale * (1 + Math.sin(phase * 0.61) * 0.025)
+  const centerX = viewport.width / 2
+  const centerY = viewport.height / 2
+
+  return {
+    scale,
+    x:
+      centerX -
+      ((centerX - camera.x) / camera.scale) * scale +
+      Math.sin(phase) * 22,
+    y:
+      centerY -
+      ((centerY - camera.y) / camera.scale) * scale +
+      Math.sin(phase * 0.73) * 15,
+  }
 }
 
 export function getItemBounds(item: BoardItem): {
