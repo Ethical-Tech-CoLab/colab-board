@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { getItemBounds, getSpatialTransform } from './board'
+import { getItemBounds, getSpatialTransform, sparkleHue } from './board'
 import type { CanvasBrandTokens } from './branding'
 import type {
   BoardDocument,
@@ -231,15 +231,57 @@ function createSpatialItem(
           item.width,
         )
     const material = new THREE.MeshStandardMaterial({
-      color: item.color,
-      emissive: item.color,
-      emissiveIntensity: 0.13,
+      color: item.effect === 'sparkle' ? '#f3eefb' : item.color,
+      emissive: item.effect === 'sparkle' ? '#7b5cff' : item.color,
+      emissiveIntensity: item.effect === 'sparkle' ? 0.32 : 0.13,
       metalness: 0.1,
       opacity: item.opacity,
       roughness: 0.26,
       transparent: item.opacity < 1,
     })
     group.add(new THREE.Mesh(geometry, material))
+    if (item.effect === 'sparkle') {
+      const positions: number[] = []
+      const colors: number[] = []
+      const color = new THREE.Color()
+      item.points.forEach((point, pointIndex) => {
+        if (pointIndex % 3 !== 0) return
+        positions.push(
+          (point.x - centerX) * WORLD_SCALE,
+          -(point.y - centerY) * WORLD_SCALE,
+          item.width * WORLD_SCALE * (0.7 + (pointIndex % 5) * 0.16),
+        )
+        color.setHSL(
+          sparkleHue(item.seed ?? 0, pointIndex) / 360,
+          0.95,
+          0.68,
+          THREE.SRGBColorSpace,
+        )
+        colors.push(color.r, color.g, color.b)
+      })
+      const sparkleGeometry = new THREE.BufferGeometry()
+      sparkleGeometry.setAttribute(
+        'position',
+        new THREE.Float32BufferAttribute(positions, 3),
+      )
+      sparkleGeometry.setAttribute(
+        'color',
+        new THREE.Float32BufferAttribute(colors, 3),
+      )
+      group.add(
+        new THREE.Points(
+          sparkleGeometry,
+          new THREE.PointsMaterial({
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            size: Math.max(0.035, item.width * WORLD_SCALE * 1.4),
+            sizeAttenuation: true,
+            transparent: true,
+            vertexColors: true,
+          }),
+        ),
+      )
+    }
   }
 
   if (item.type === 'note') {

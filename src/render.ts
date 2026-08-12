@@ -1,4 +1,4 @@
-import { getItemBounds } from './board'
+import { getItemBounds, sparkleHue, sparkleOffset } from './board'
 import type { CanvasBrandTokens } from './branding'
 import type {
   BoardItem,
@@ -54,9 +54,13 @@ function drawStroke(
 ) {
   if (stroke.points.length === 0) return
 
+  const sparkle = stroke.effect === 'sparkle'
+  const seed = stroke.seed ?? 0
   context.save()
   context.strokeStyle = stroke.color
-  context.fillStyle = stroke.color
+  context.fillStyle = sparkle
+    ? `hsl(${sparkleHue(seed, 0)} 92% 65%)`
+    : stroke.color
   context.globalAlpha = stroke.opacity
   context.lineCap = 'round'
   context.lineJoin = 'round'
@@ -74,11 +78,42 @@ function drawStroke(
       context.lineWidth =
         stroke.width *
         Math.max(0.35, (previous.pressure + point.pressure) / 2)
+      context.strokeStyle = sparkle
+        ? `hsl(${sparkleHue(seed, index)} 92% 65%)`
+        : stroke.color
       context.beginPath()
       context.moveTo(previous.x, previous.y)
       context.lineTo(point.x, point.y)
       context.stroke()
     }
+  }
+
+  if (sparkle) {
+    context.globalAlpha = Math.min(1, stroke.opacity * 0.9)
+    stroke.points.forEach((point, index) => {
+      if (index % 3 !== 0) return
+      const offset = sparkleOffset(seed, index) * stroke.width * 0.9
+      const radius =
+        stroke.width * (0.16 + Math.abs(sparkleOffset(seed, index + 11)) * 0.17)
+      context.save()
+      context.translate(point.x + offset, point.y - offset * 0.55)
+      context.rotate((sparkleHue(seed, index) / 180) * Math.PI)
+      context.fillStyle = `hsl(${sparkleHue(seed, index + 7)} 100% 78%)`
+      context.shadowColor = context.fillStyle
+      context.shadowBlur = radius * 3
+      context.beginPath()
+      for (let ray = 0; ray < 8; ray += 1) {
+        const angle = (ray * Math.PI) / 4
+        const distance = ray % 2 === 0 ? radius * 2.3 : radius * 0.55
+        const x = Math.cos(angle) * distance
+        const y = Math.sin(angle) * distance
+        if (ray === 0) context.moveTo(x, y)
+        else context.lineTo(x, y)
+      }
+      context.closePath()
+      context.fill()
+      context.restore()
+    })
   }
   context.restore()
 }

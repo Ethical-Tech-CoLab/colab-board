@@ -180,7 +180,7 @@ eight-character codes, allow one completed delivery, and expire after ten
 minutes. GitHub Pages remains the application host and direct project download
 remains the offline fallback.
 
-## P0 — Fully Responsive and Portrait-Ready Workspace
+## P0 — Fully Responsive and Portrait-Ready Workspace — Implemented in v0.8.0
 
 Make every application surface adapt to the browser viewport, including
 portrait-oriented Surface Hubs, tablets, split-screen windows, and compact
@@ -202,7 +202,7 @@ Acceptance criteria:
 - Rotating a device preserves board content, camera state, and selection.
 - No horizontal page scrolling or inaccessible off-screen controls.
 
-## P1 — Adjustable Overlay Transparency
+## P1 — Adjustable Overlay Transparency — Implemented in v0.8.0
 
 Move all application chrome onto a consistent, partially transparent glass
 system so the board stays visible beneath the header, tool rail, panels,
@@ -222,7 +222,7 @@ Acceptance criteria:
   respond together without changing canvas content.
 - Both bundled themes remain readable at the minimum and maximum setting.
 
-## P1 — Sparkly Multicolor Pen
+## P1 — Sparkly Multicolor Pen — Implemented in v0.8.0
 
 Add a delightful Surface Hub-inspired pen that lays down animated,
 multi-hued sparkle ink while retaining normal whiteboard performance.
@@ -242,7 +242,7 @@ Acceptance criteria:
   PNG export, and spatial view.
 - Dense sparkle strokes remain responsive on a representative Surface Hub.
 
-## P2 — Theme-It Rapid Brand Sampling
+## P2 — Theme-It Rapid Brand Sampling — Implemented in v0.9.0
 
 Let a facilitator build a temporary local theme pack on any machine by using a
 paint-brush sampler for three or four key colors and adding a logo.

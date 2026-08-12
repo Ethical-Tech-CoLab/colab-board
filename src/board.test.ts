@@ -10,9 +10,19 @@ import {
   isBoardDocument,
   placeItemsAtCenter,
   replayAt,
+  sparkleHue,
+  sparkleOffset,
   withSpatialTransform,
 } from './board'
-import { BRAND_THEMES } from './branding'
+import {
+  BRAND_THEMES,
+  contrastRatio,
+  createCustomBrandTheme,
+  isThemeItConfig,
+  parseThemePack,
+  serializeThemePack,
+  type ThemeItConfig,
+} from './branding'
 import type { NoteItem, StrokeItem, TimelineEvent } from './types'
 
 const note: NoteItem = {
@@ -160,6 +170,14 @@ describe('board document events', () => {
     })
     expect(note.spatial).toBeUndefined()
   })
+
+  it('generates deterministic sparkle colors and offsets', () => {
+    expect(sparkleHue(42, 7)).toBe(sparkleHue(42, 7))
+    expect(sparkleHue(42, 7)).not.toBe(sparkleHue(42, 8))
+    expect(sparkleOffset(42, 7)).toBe(sparkleOffset(42, 7))
+    expect(sparkleOffset(42, 7)).toBeGreaterThanOrEqual(-1)
+    expect(sparkleOffset(42, 7)).toBeLessThanOrEqual(1)
+  })
 })
 
 describe('project validation', () => {
@@ -185,5 +203,41 @@ describe('swappable branding', () => {
     expect(theme.inkColors[0]).toBe('#c8f04b')
     expect(theme.canvas.background).toBe('#171020')
     expect(theme.logoSrc).toBe('./etc-logo.png')
+  })
+
+  it('derives a complete contrast-aware custom theme', () => {
+    const config: ThemeItConfig = {
+      name: 'Night Shift',
+      organization: 'Local team',
+      primary: '#77ddbb',
+      secondary: '#7655ee',
+      canvas: '#101522',
+      surface: '#1a2030',
+    }
+    const theme = createCustomBrandTheme(config)
+
+    expect(theme.id).toBe('custom')
+    expect(theme.inkColors).toHaveLength(6)
+    expect(theme.canvas.grid).toMatch(/^rgba\(/)
+    expect(theme.css?.['--brand-foreground']).toBe('#ffffff')
+    expect(theme.colorScheme).toBe('dark')
+    expect(contrastRatio('#25312b', theme.noteColor)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('round-trips valid Theme-It packs and rejects malformed themes', () => {
+    const config: ThemeItConfig = {
+      name: 'Workshop',
+      organization: 'Local team',
+      primary: '#224466',
+      secondary: '#dd8844',
+      canvas: '#f4f5f6',
+      surface: '#ffffff',
+    }
+
+    expect(parseThemePack(serializeThemePack(config))).toEqual(config)
+    expect(isThemeItConfig({ ...config, primary: 'blue' })).toBe(false)
+    expect(() => parseThemePack('{"kind":"colab-theme"}')).toThrow(
+      'not a valid CoLab Board theme pack',
+    )
   })
 })

@@ -24,6 +24,8 @@ import {
   Minus,
   MousePointer2,
   MoreHorizontal,
+  Orbit,
+  Paintbrush,
   PanelRightClose,
   PanelRightOpen,
   Pencil,
@@ -40,6 +42,7 @@ import {
   StickyNote,
   Trash2,
   Undo2,
+  Waves,
   X,
   ZoomIn,
   type LucideIcon,
@@ -49,7 +52,17 @@ import DeviceTransferDialog from './DeviceTransferDialog'
 import ReplayOverlay from './ReplayOverlay'
 import SpatialInspector from './SpatialInspector'
 import TakeBoardDialog from './TakeBoardDialog'
-import { BRAND_THEMES, applyBrandTheme } from './branding'
+import ThemeItDialog from './ThemeItDialog'
+import {
+  BRAND_THEMES,
+  CUSTOM_THEME_STORAGE_KEY,
+  DEFAULT_THEME_IT_CONFIG,
+  applyBrandTheme,
+  createCustomBrandTheme,
+  isThemeItConfig,
+  type BuiltInBrandThemeId,
+  type ThemeItConfig,
+} from './branding'
 import {
   DEFAULT_CAMERA,
   applyItemEvent,
@@ -71,6 +84,7 @@ import {
 import type {
   BoardDocument,
   BoardItem,
+  BrandThemeId,
   Camera,
   Preferences,
   SaveState,
@@ -90,6 +104,8 @@ const DEFAULT_PREFERENCES: Preferences = {
   brandTheme: 'ethical-tech',
   sceneMode: 'canvas',
   perspectiveGuide: 'grid',
+  inkStyle: 'solid',
+  overlayOpacity: 88,
 }
 
 const TOOL_CONFIG: Array<{
@@ -165,15 +181,34 @@ function imageDimensions(
   })
 }
 
+function loadCustomTheme(): ThemeItConfig | null {
+  try {
+    const value = localStorage.getItem(CUSTOM_THEME_STORAGE_KEY)
+    if (!value) return null
+    const parsed = JSON.parse(value) as unknown
+    if (isThemeItConfig(parsed)) return parsed
+    console.warn('Saved custom theme is not valid and was ignored.')
+  } catch (error: unknown) {
+    console.warn('Saved custom theme could not be loaded.', error)
+  }
+  return null
+}
+
+function isBuiltInThemeId(value: unknown): value is BuiltInBrandThemeId {
+  return typeof value === 'string' && value in BRAND_THEMES
+}
+
 function loadPreferences(): Preferences {
   try {
     const value = localStorage.getItem('colab-board-preferences')
     if (!value) return DEFAULT_PREFERENCES
     const parsed = JSON.parse(value) as Partial<Preferences>
-    const brandTheme =
-      parsed.brandTheme && parsed.brandTheme in BRAND_THEMES
-        ? parsed.brandTheme
-        : DEFAULT_PREFERENCES.brandTheme
+    const brandTheme: BrandThemeId =
+      parsed.brandTheme === 'custom' && loadCustomTheme()
+        ? 'custom'
+        : isBuiltInThemeId(parsed.brandTheme)
+          ? parsed.brandTheme
+          : DEFAULT_PREFERENCES.brandTheme
     const sceneMode =
       parsed.sceneMode === 'spatial' ? 'spatial' : DEFAULT_PREFERENCES.sceneMode
     const perspectiveGuide = (
@@ -181,16 +216,32 @@ function loadPreferences(): Preferences {
     ).includes(parsed.perspectiveGuide ?? 'grid')
       ? (parsed.perspectiveGuide ?? DEFAULT_PREFERENCES.perspectiveGuide)
       : DEFAULT_PREFERENCES.perspectiveGuide
+    const screensaverMode = (
+      ['replay', 'drift', 'galaxy', 'aurora', 'constellation'] as const
+    ).includes(parsed.screensaverMode ?? 'replay')
+      ? (parsed.screensaverMode ?? DEFAULT_PREFERENCES.screensaverMode)
+      : DEFAULT_PREFERENCES.screensaverMode
     return {
       ...DEFAULT_PREFERENCES,
       ...parsed,
       brandTheme,
       sceneMode,
       perspectiveGuide,
+      screensaverMode,
+      inkStyle:
+        parsed.inkStyle === 'sparkle'
+          ? 'sparkle'
+          : DEFAULT_PREFERENCES.inkStyle,
+      overlayOpacity:
+        typeof parsed.overlayOpacity === 'number'
+          ? Math.min(98, Math.max(58, parsed.overlayOpacity))
+          : DEFAULT_PREFERENCES.overlayOpacity,
       color:
         typeof parsed.color === 'string'
           ? parsed.color
-          : BRAND_THEMES[brandTheme].inkColors[0],
+          : brandTheme === 'custom'
+            ? DEFAULT_THEME_IT_CONFIG.primary
+            : BRAND_THEMES[brandTheme].inkColors[0],
     }
   } catch (error: unknown) {
     console.warn('Saved appearance preferences could not be loaded.', error)
@@ -204,6 +255,8 @@ function App() {
   const [tool, setTool] = useState<Tool>('pen')
   const [preferences, setPreferences] =
     useState<Preferences>(loadPreferences)
+  const [customThemeConfig, setCustomThemeConfig] =
+    useState<ThemeItConfig | null>(loadCustomTheme)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [spatialPreview, setSpatialPreview] = useState<BoardItem | null>(null)
   const [saveState, setSaveState] = useState<SaveState>('loading')
@@ -212,6 +265,7 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsCollapsed, setSettingsCollapsed] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [themeItOpen, setThemeItOpen] = useState(false)
   const [welcomeDismissed, setWelcomeDismissed] = useState(false)
   const [replay, setReplay] = useState<ReplayState | null>(null)
   const [takeBoard, setTakeBoard] = useState<{
@@ -237,7 +291,20 @@ function App() {
   const importInput = useRef<HTMLInputElement>(null)
   const imageInput = useRef<HTMLInputElement>(null)
   const idleTimer = useRef<number | undefined>(undefined)
-  const activeTheme = BRAND_THEMES[preferences.brandTheme]
+  const customTheme = useMemo(
+    () =>
+      customThemeConfig ? createCustomBrandTheme(customThemeConfig) : null,
+    [customThemeConfig],
+  )
+  const builtInThemeId: BuiltInBrandThemeId = isBuiltInThemeId(
+    preferences.brandTheme,
+  )
+    ? preferences.brandTheme
+    : 'ethical-tech'
+  const activeTheme =
+    preferences.brandTheme === 'custom' && customTheme
+      ? customTheme
+      : BRAND_THEMES[builtInThemeId]
 
   const notify = useCallback(
     (message: string, tone: Toast['tone'] = 'info') => {
@@ -254,6 +321,10 @@ function App() {
 
   useEffect(() => {
     applyBrandTheme(activeTheme)
+    document.documentElement.style.setProperty(
+      '--overlay-opacity',
+      `${preferences.overlayOpacity}%`,
+    )
     try {
       localStorage.setItem(
         'colab-board-preferences',
@@ -667,6 +738,50 @@ function App() {
     }))
   }
 
+  const applyCustomTheme = (theme: ThemeItConfig) => {
+    try {
+      localStorage.setItem(CUSTOM_THEME_STORAGE_KEY, JSON.stringify(theme))
+      setCustomThemeConfig(theme)
+      setPreferences((current) => ({
+        ...current,
+        brandTheme: 'custom',
+        color: theme.primary,
+        inkStyle: 'solid',
+      }))
+      setThemeItOpen(false)
+      notify(`${theme.name || 'Custom theme'} applied on this device.`, 'success')
+    } catch (error: unknown) {
+      notify(
+        error instanceof Error
+          ? `Custom theme could not be saved: ${error.message}`
+          : 'Custom theme could not be saved on this device.',
+        'error',
+      )
+    }
+  }
+
+  const resetCustomTheme = () => {
+    try {
+      localStorage.removeItem(CUSTOM_THEME_STORAGE_KEY)
+      setCustomThemeConfig(null)
+      setPreferences((current) => ({
+        ...current,
+        brandTheme: 'ethical-tech',
+        color: BRAND_THEMES['ethical-tech'].inkColors[0],
+        inkStyle: 'solid',
+      }))
+      setThemeItOpen(false)
+      notify('Custom theme reset to Ethical Tech CoLab.', 'success')
+    } catch (error: unknown) {
+      notify(
+        error instanceof Error
+          ? `Custom theme could not be reset: ${error.message}`
+          : 'Custom theme could not be reset on this device.',
+        'error',
+      )
+    }
+  }
+
   const acceptTransferredContent = useCallback(
     (content: TransferContent) => {
       if (content.kind === 'image') {
@@ -922,6 +1037,7 @@ function App() {
               tool={tool}
               color={preferences.color}
               strokeWidth={preferences.strokeWidth}
+              inkStyle={preferences.inkStyle}
               canvasTheme={activeTheme.canvas}
               noteColor={activeTheme.noteColor}
               selectedId={selectedId}
@@ -1025,10 +1141,30 @@ function App() {
                     style={{ '--swatch': color } as React.CSSProperties}
                     aria-label={`Use color ${color}`}
                     onClick={() =>
-                      setPreferences((current) => ({ ...current, color }))
+                      setPreferences((current) => ({
+                        ...current,
+                        color,
+                        inkStyle: 'solid',
+                      }))
                     }
                   />
                 ))}
+                <button
+                  type="button"
+                  className={`sparkle-swatch${
+                    preferences.inkStyle === 'sparkle' ? ' is-active' : ''
+                  }`}
+                  aria-label="Use sparkly multicolor ink"
+                  title="Sparkly multicolor ink"
+                  onClick={() =>
+                    setPreferences((current) => ({
+                      ...current,
+                      inkStyle: 'sparkle',
+                    }))
+                  }
+                >
+                  <Sparkles />
+                </button>
               </div>
               <span className="options-divider" />
               <label className="stroke-size">
@@ -1210,6 +1346,7 @@ function App() {
                         ...current,
                         brandTheme: themeOption.id,
                         color: themeOption.inkColors[0],
+                        inkStyle: 'solid',
                       }))
                     }
                   >
@@ -1226,14 +1363,61 @@ function App() {
                     <span>
                       <strong>{themeOption.name}</strong>
                       <small>
-                        {themeOption.id === 'ethical-tech'
-                          ? 'Website demo theme'
-                          : 'Original board theme'}
+                        {themeOption.description}
                       </small>
                     </span>
                     {preferences.brandTheme === themeOption.id && <Check />}
                   </button>
                 ))}
+                {customTheme && (
+                  <button
+                    type="button"
+                    className={
+                      preferences.brandTheme === 'custom' ? 'is-active' : ''
+                    }
+                    onClick={() =>
+                      setPreferences((current) => ({
+                        ...current,
+                        brandTheme: 'custom',
+                        color: customTheme.inkColors[0],
+                        inkStyle: 'solid',
+                      }))
+                    }
+                  >
+                    <span
+                      className="theme-preview preview-custom"
+                      style={{
+                        background: `linear-gradient(145deg, ${customThemeConfig?.primary}, ${customThemeConfig?.secondary})`,
+                      }}
+                      aria-hidden="true"
+                    >
+                      {customTheme.logoSrc ? (
+                        <img src={customTheme.logoSrc} alt="" />
+                      ) : (
+                        customTheme.mark
+                      )}
+                    </span>
+                    <span>
+                      <strong>{customTheme.name}</strong>
+                      <small>{customTheme.description}</small>
+                    </span>
+                    {preferences.brandTheme === 'custom' && <Check />}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="theme-it-launch"
+                  onClick={() => setThemeItOpen(true)}
+                >
+                  <span className="theme-preview preview-theme-it" aria-hidden="true">
+                    <Paintbrush />
+                  </span>
+                  <span>
+                    <strong>Theme-It</strong>
+                    <small>Sample colors and add a local logo</small>
+                  </span>
+                  <Sparkles />
+                </button>
               </div>
             </div>
 
@@ -1245,6 +1429,8 @@ function App() {
                     ['replay', 'Session replay', RotateCcw],
                     ['drift', 'Ink drift', Sparkles],
                     ['galaxy', 'CoLab galaxy', ZoomIn],
+                    ['aurora', 'Aurora flow', Waves],
+                    ['constellation', 'Idea constellation', Orbit],
                   ] as const
                 ).map(([mode, label, Icon]) => (
                   <button
@@ -1266,7 +1452,54 @@ function App() {
                   </button>
                 ))}
               </div>
+              <button
+                className="preview-screensaver"
+                type="button"
+                disabled={board.items.length === 0}
+                onClick={() =>
+                  setReplay({
+                    mode: preferences.screensaverMode,
+                    autoLoop: false,
+                  })
+                }
+              >
+                <Play /> Preview screensaver
+              </button>
             </div>
+
+            <label className="overlay-opacity-control">
+              <span>
+                Overlay transparency
+                <output>{preferences.overlayOpacity}%</output>
+              </span>
+              <input
+                type="range"
+                min="58"
+                max="98"
+                step="1"
+                value={preferences.overlayOpacity}
+                onChange={(event) =>
+                  setPreferences((current) => ({
+                    ...current,
+                    overlayOpacity: Number(event.target.value),
+                  }))
+                }
+              />
+              <small>Adjusts header, tools, panels, and floating controls.</small>
+            </label>
+            <button
+              className="overlay-opacity-reset"
+              type="button"
+              disabled={preferences.overlayOpacity === 88}
+              onClick={() =>
+                setPreferences((current) => ({
+                  ...current,
+                  overlayOpacity: 88,
+                }))
+              }
+            >
+              <RotateCcw /> Reset overlay transparency
+            </button>
 
             <label>
               Start after
@@ -1438,6 +1671,15 @@ function App() {
             setDeviceTransfer(null)
           }}
           onAccept={acceptTransferredContent}
+        />
+      )}
+      {themeItOpen && (
+        <ThemeItDialog
+          initialTheme={customThemeConfig ?? DEFAULT_THEME_IT_CONFIG}
+          hasSavedTheme={Boolean(customThemeConfig)}
+          onApply={applyCustomTheme}
+          onReset={resetCustomTheme}
+          onClose={() => setThemeItOpen(false)}
         />
       )}
     </div>

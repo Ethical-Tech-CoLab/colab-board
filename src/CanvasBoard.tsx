@@ -20,6 +20,7 @@ import type {
   BoardItem,
   Camera,
   ImageItem,
+  InkStyle,
   NoteItem,
   Point,
   StrokeItem,
@@ -32,6 +33,7 @@ interface CanvasBoardProps {
   tool: Tool
   color: string
   strokeWidth: number
+  inkStyle: InkStyle
   canvasTheme: CanvasBrandTokens
   noteColor: string
   selectedId: string | null
@@ -180,6 +182,7 @@ export default function CanvasBoard({
   tool,
   color,
   strokeWidth,
+  inkStyle,
   canvasTheme,
   noteColor,
   selectedId,
@@ -207,6 +210,7 @@ export default function CanvasBoard({
     startedAt: number
     startedPerformance: number
     points: Point[]
+    seed: number
   } | null>(null)
   const panInteraction = useRef<{
     pointerId: number
@@ -380,6 +384,7 @@ export default function CanvasBoard({
         startedAt: now,
         startedPerformance,
         points: [firstPoint],
+        seed: Math.floor(Math.random() * 0xffffffff),
       }
       setDraft({
         id: 'draft',
@@ -390,6 +395,11 @@ export default function CanvasBoard({
         opacity: tool === 'highlighter' ? 0.28 : 1,
         duration: 0,
         createdAt: now,
+        effect: inkStyle === 'sparkle' ? 'sparkle' : undefined,
+        seed:
+          inkStyle === 'sparkle'
+            ? drawInteraction.current.seed
+            : undefined,
       })
       return
     }
@@ -537,6 +547,8 @@ export default function CanvasBoard({
         opacity: tool === 'highlighter' ? 0.28 : 1,
         duration: Math.max(80, points.at(-1)?.t ?? 0),
         createdAt: interaction.startedAt,
+        effect: inkStyle === 'sparkle' ? 'sparkle' : undefined,
+        seed: inkStyle === 'sparkle' ? interaction.seed : undefined,
       }
       onAddItem(item, strokeAsEvent(item).at)
       drawInteraction.current = null

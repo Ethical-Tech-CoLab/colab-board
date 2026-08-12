@@ -23,8 +23,16 @@
   --brand-glow-2: #b8d400;
   --brand-control: rgba(255, 255, 255, 0.055);
   --brand-control-hover: rgba(200, 240, 75, 0.11);
-  --brand-glass: color-mix(in srgb, #120c1a 84%, transparent);
-  --brand-panel-glass: color-mix(in srgb, #201630 92%, transparent);
+  --brand-glass: color-mix(
+    in srgb,
+    #120c1a var(--overlay-opacity, 88%),
+    transparent
+  );
+  --brand-panel-glass: color-mix(
+    in srgb,
+    #201630 var(--overlay-opacity, 88%),
+    transparent
+  );
   --brand-overlay: rgba(9, 5, 14, 0.68);
   --brand-shadow-color: rgba(6, 3, 10, 0.42);
   --brand-selection: #c8f04b;
@@ -60,8 +68,16 @@
   --brand-glow-2: #d8b76e;
   --brand-control: #eef1ec;
   --brand-control-hover: #e2e8e1;
-  --brand-glass: rgba(251, 251, 247, 0.96);
-  --brand-panel-glass: rgba(255, 255, 252, 0.96);
+  --brand-glass: color-mix(
+    in srgb,
+    #fbfbf7 var(--overlay-opacity, 88%),
+    transparent
+  );
+  --brand-panel-glass: color-mix(
+    in srgb,
+    #fffffc var(--overlay-opacity, 88%),
+    transparent
+  );
   --brand-overlay: rgba(22, 33, 27, 0.48);
   --brand-shadow-color: rgba(27, 43, 35, 0.16);
   --brand-selection: #27735b;
@@ -73,4 +89,143 @@
   --brand-radius: 10px;
   --brand-radius-large: 20px;
   --brand-grain-opacity: 0;
+}
+
+[data-brand='signal'] {
+  color-scheme: dark;
+  --brand-background: #050715;
+  --brand-surface: #0c1024;
+  --brand-panel: #11162d;
+  --brand-card: #171d3b;
+  --brand-foreground: #f8f8ff;
+  --brand-muted: rgba(226, 231, 255, 0.62);
+  --brand-border: rgba(89, 243, 255, 0.22);
+  --brand-border-strong: rgba(255, 79, 135, 0.5);
+  --brand-accent: #59f3ff;
+  --brand-accent-hover: #83f7ff;
+  --brand-accent-ink: #07131c;
+  --brand-secondary: #382064;
+  --brand-secondary-ink: #f8f8ff;
+  --brand-canvas: #090b1a;
+  --brand-grid: rgba(89, 243, 255, 0.1);
+  --brand-danger: #ff668f;
+  --brand-success: #43e98b;
+  --brand-warning: #ffe66d;
+  --brand-glow: #ff4f87;
+  --brand-glow-2: #59f3ff;
+  --brand-control: rgba(248, 248, 255, 0.07);
+  --brand-control-hover: rgba(89, 243, 255, 0.14);
+  --brand-glass: color-mix(
+    in srgb,
+    #070919 var(--overlay-opacity, 88%),
+    transparent
+  );
+  --brand-panel-glass: color-mix(
+    in srgb,
+    #11162d var(--overlay-opacity, 88%),
+    transparent
+  );
+  --brand-overlay: rgba(2, 3, 12, 0.74);
+  --brand-shadow-color: rgba(1, 3, 12, 0.48);
+  --brand-selection: #59f3ff;
+  --brand-font-sans: 'Space Mono', ui-monospace, monospace;
+  --brand-font-heading: 'Space Mono', ui-monospace, monospace;
+  --brand-font-display: 'Bebas Neue', 'Arial Narrow', sans-serif;
+  --brand-radius: 5px;
+  --brand-radius-large: 12px;
+  --brand-grain-opacity: 0.025;
+}
+
+[data-brand='ocean'] {
+  color-scheme: light;
+  --brand-background: #dcefeb;
+  --brand-surface: #f7fcfb;
+  --brand-panel: #ffffff;
+  --brand-card: #ffffff;
+  --brand-foreground: #17324d;
+  --brand-muted: #5b7078;
+  --brand-border: rgba(0, 112, 118, 0.18);
+  --brand-border-strong: rgba(0, 123, 128, 0.38);
+  --brand-accent: #007b80;
+  --brand-accent-hover: #006369;
+  --brand-accent-ink: #ffffff;
+  --brand-secondary: #cdeee9;
+  --brand-secondary-ink: #124c53;
+  --brand-canvas: #edf8f6;
+  --brand-grid: rgba(0, 112, 118, 0.1);
+  --brand-danger: #b34e3c;
+  --brand-success: #007b80;
+  --brand-warning: #d89222;
+  --brand-glow: #4bc7c2;
+  --brand-glow-2: #f5b642;
+  --brand-control: #eaf5f3;
+  --brand-control-hover: #d9efec;
+  --brand-glass: color-mix(
+    in srgb,
+    #f7fcfb var(--overlay-opacity, 88%),
+    transparent
+  );
+  --brand-panel-glass: color-mix(
+    in srgb,
+    #ffffff var(--overlay-opacity, 88%),
+    transparent
+  );
+  --brand-overlay: rgba(13, 48, 56, 0.5);
+  --brand-shadow-color: rgba(18, 74, 77, 0.17);
+  --brand-selection: #007b80;
+  --brand-font-sans:
+    Aptos, 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --brand-font-heading:
+    Aptos, 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  --brand-font-display: Georgia, 'Times New Roman', serif;
+  --brand-radius: 14px;
+  --brand-radius-large: 24px;
+  --brand-grain-opacity: 0;
+}
+
+[data-brand='sunrise'] {
+  color-scheme: light;
+  --brand-background: #f5e5ca;
+  --brand-surface: #fffaf0;
+  --brand-panel: #fffdf8;
+  --brand-card: #ffffff;
+  --brand-foreground: #28213b;
+  --brand-muted: #6f6674;
+  --brand-border: rgba(109, 63, 192, 0.17);
+  --brand-border-strong: rgba(241, 90, 58, 0.38);
+  --brand-accent: #f15a3a;
+  --brand-accent-hover: #d9482d;
+  --brand-accent-ink: #ffffff;
+  --brand-secondary: #ede1ff;
+  --brand-secondary-ink: #523192;
+  --brand-canvas: #fff7e8;
+  --brand-grid: rgba(109, 63, 192, 0.09);
+  --brand-danger: #b23f35;
+  --brand-success: #147d73;
+  --brand-warning: #db9b17;
+  --brand-glow: #6d3fc0;
+  --brand-glow-2: #f15a3a;
+  --brand-control: #f6eddf;
+  --brand-control-hover: #eee1d0;
+  --brand-glass: color-mix(
+    in srgb,
+    #fffaf0 var(--overlay-opacity, 88%),
+    transparent
+  );
+  --brand-panel-glass: color-mix(
+    in srgb,
+    #fffdf8 var(--overlay-opacity, 88%),
+    transparent
+  );
+  --brand-overlay: rgba(43, 30, 57, 0.48);
+  --brand-shadow-color: rgba(83, 52, 45, 0.17);
+  --brand-selection: #6d3fc0;
+  --brand-font-sans:
+    Aptos, 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --brand-font-heading:
+    Aptos, 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  --brand-font-display: Georgia, 'Times New Roman', serif;
+  --brand-radius: 12px;
+  --brand-radius-large: 22px;
+  --brand-grain-opacity: 0.012;
 }

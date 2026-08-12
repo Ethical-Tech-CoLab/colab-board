@@ -186,12 +186,19 @@ export default function ReplayOverlay({
                       : item.type === 'note'
                         ? item.color
                         : '#8eb6a7',
+                  '--x': `${5 + ((index * 29) % 84)}%`,
+                  '--y': `${8 + ((index * 23) % 76)}%`,
+                  '--width': `${45 + (index % 5) * 24}px`,
+                  '--height': `${45 + (index % 4) * 30}px`,
+                  '--blur': `${(index % 3) * 2}px`,
+                  '--duration': `${12 + (index % 7) * 2}s`,
+                  '--delay': `${index * -0.7}s`,
                 } as React.CSSProperties
               }
             />
           ))}
         </div>
-      ) : (
+      ) : mode === 'galaxy' ? (
         <div className="galaxy-scene">
           <div className="galaxy-core">
             <span>ETHICAL TECH</span>
@@ -200,7 +207,64 @@ export default function ReplayOverlay({
           {sceneItems.map((item, index) => (
             <i
               key={item.id}
-              style={{ '--i': index } as React.CSSProperties}
+              style={
+                {
+                  '--i': index,
+                  '--size': `${2 + (index % 4)}px`,
+                  '--duration': `${9 + (index % 8) * 2}s`,
+                  '--radius': `${45 + index * 10}px`,
+                  '--delay': `${index * -0.5}s`,
+                } as React.CSSProperties
+              }
+            />
+          ))}
+        </div>
+      ) : mode === 'aurora' ? (
+        <div className="aurora-scene">
+          <div className="aurora-title">
+            <span>Ideas in motion</span>
+            <strong>{document.title}</strong>
+          </div>
+          {Array.from({ length: 6 }, (_, index) => (
+            <i key={index} style={{ '--i': index } as React.CSSProperties} />
+          ))}
+          <div className="aurora-stars" />
+        </div>
+      ) : (
+        <div className="constellation-scene">
+          <div className="constellation-title">
+            <span>Connected thinking</span>
+            <strong>{document.title}</strong>
+          </div>
+          <svg viewBox="0 0 1000 700" aria-hidden="true">
+            {Array.from({ length: 18 }, (_, index) => {
+              const next = (index + 5) % 18
+              return (
+                <line
+                  key={`line-${index}`}
+                  x1={90 + ((index * 137) % 820)}
+                  y1={80 + ((index * 89) % 540)}
+                  x2={90 + ((next * 137) % 820)}
+                  y2={80 + ((next * 89) % 540)}
+                />
+              )
+            })}
+          </svg>
+          {Array.from({ length: 18 }, (_, index) => (
+            <i
+              key={index}
+              style={
+                {
+                  '--i': index,
+                  '--x': `${9 + ((index * 13.7) % 82)}%`,
+                  '--y': `${11 + ((index * 8.9) % 77)}%`,
+                  '--size': `${5 + (index % 4) * 2}px`,
+                  '--duration': `${4 + (index % 5) * 1.2}s`,
+                  '--delay': `${index * -0.34}s`,
+                  '--dx': `${-18 + (index % 5) * 9}px`,
+                  '--dy': `${24 - (index % 4) * 13}px`,
+                } as React.CSSProperties
+              }
             />
           ))}
         </div>

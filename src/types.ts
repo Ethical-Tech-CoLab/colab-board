@@ -6,8 +6,20 @@ export type Tool =
   | 'note'
   | 'pan'
 
-export type ScreensaverMode = 'replay' | 'drift' | 'galaxy'
-export type BrandThemeId = 'ethical-tech' | 'studio'
+export type ScreensaverMode =
+  | 'replay'
+  | 'drift'
+  | 'galaxy'
+  | 'aurora'
+  | 'constellation'
+export type BrandThemeId =
+  | 'ethical-tech'
+  | 'studio'
+  | 'signal'
+  | 'ocean'
+  | 'sunrise'
+  | 'custom'
+export type InkStyle = 'solid' | 'sparkle'
 export type SceneMode = 'canvas' | 'spatial'
 export type PerspectiveGuide = 'none' | 'grid' | 'one-point' | 'two-point'
 
@@ -39,6 +51,8 @@ export interface StrokeItem extends ItemBase {
   width: number
   opacity: number
   duration: number
+  effect?: 'sparkle'
+  seed?: number
 }
 
 export interface NoteItem extends ItemBase {
@@ -114,6 +128,8 @@ export interface Preferences {
   brandTheme: BrandThemeId
   sceneMode: SceneMode
   perspectiveGuide: PerspectiveGuide
+  inkStyle: InkStyle
+  overlayOpacity: number
 }
 
 export type SaveState = 'loading' | 'saving' | 'saved' | 'error'

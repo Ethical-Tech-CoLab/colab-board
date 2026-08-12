@@ -53,6 +53,16 @@ export function withSpatialTransform(
   }
 }
 
+export function sparkleHue(seed: number, index: number): number {
+  const mixed = Math.imul(seed ^ (index + 1), 2_654_435_761)
+  return ((mixed >>> 0) % 360 + index * 29) % 360
+}
+
+export function sparkleOffset(seed: number, index: number): number {
+  const mixed = Math.imul(seed + index * 1_013, 1_664_525) + 1_013_904_223
+  return ((mixed >>> 0) / 0xffffffff - 0.5) * 2
+}
+
 export function createId(prefix = 'item'): string {
   return `${prefix}-${crypto.randomUUID()}`
 }
