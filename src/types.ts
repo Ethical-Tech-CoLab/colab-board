@@ -8,6 +8,7 @@ export type Tool =
 
 export type ScreensaverMode = 'replay' | 'drift' | 'galaxy'
 export type BrandThemeId = 'ethical-tech' | 'studio'
+export type SceneMode = 'canvas' | 'spatial'
 
 export interface Point {
   x: number
@@ -101,6 +102,7 @@ export interface Preferences {
   idleMinutes: number
   screensaverMode: ScreensaverMode
   brandTheme: BrandThemeId
+  sceneMode: SceneMode
 }
 
 export type SaveState = 'loading' | 'saving' | 'saved' | 'error'

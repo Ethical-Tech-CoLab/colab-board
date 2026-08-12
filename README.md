@@ -4,7 +4,7 @@
 
 A local-first spatial thinking surface for touch displays, classrooms, studios, and collaborative workshops. It runs entirely in the browser and can be hosted on GitHub Pages without a server.
 
-## Current release — v0.4.0
+## Current release — v0.5.0
 
 - Pressure-aware pen and highlighter input
 - Infinite pan-and-zoom canvas with mouse, touch, and pen support
@@ -22,6 +22,8 @@ A local-first spatial thinking surface for touch displays, classrooms, studios, 
 - Installable PWA with an offline application shell
 - Runtime-swappable brand themes with the Ethical Tech CoLab website identity
   active by default and the original Warm Studio identity included as a sample
+- Opt-in Three.js spatial view with orbit navigation, floating object layers,
+  dimensional pressure-aware ink, illuminated notes, and image panels
 
 ## Run locally
 

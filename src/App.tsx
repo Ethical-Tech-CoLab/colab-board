@@ -1,4 +1,6 @@
 import {
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -8,6 +10,7 @@ import {
 } from 'react'
 import {
   BringToFront,
+  Box,
   Check,
   CircleHelp,
   Download,
@@ -74,12 +77,15 @@ import type {
 } from './types'
 import './App.css'
 
+const SpatialBoard = lazy(() => import('./SpatialBoard'))
+
 const DEFAULT_PREFERENCES: Preferences = {
   color: BRAND_THEMES['ethical-tech'].inkColors[0],
   strokeWidth: 5,
   idleMinutes: 2,
   screensaverMode: 'replay',
   brandTheme: 'ethical-tech',
+  sceneMode: 'canvas',
 }
 
 const TOOL_CONFIG: Array<{
@@ -837,6 +843,10 @@ function App() {
               aria-label={`${label} (${shortcut})`}
               title={`${label} · ${shortcut}`}
               onClick={() => {
+                setPreferences((current) => ({
+                  ...current,
+                  sceneMode: 'canvas',
+                }))
                 setTool(id)
                 setSelectedId(null)
                 markActivity()
@@ -859,26 +869,79 @@ function App() {
         </aside>
 
         <section className="board-area">
-          <CanvasBoard
-            document={board}
-            camera={camera}
-            tool={tool}
-            color={preferences.color}
-            strokeWidth={preferences.strokeWidth}
-            canvasTheme={activeTheme.canvas}
-            noteColor={activeTheme.noteColor}
-            selectedId={selectedId}
-            onAddItem={addItem}
-            onUpdateItem={updateItem}
-            onDeleteItem={deleteItem}
-            onCameraChange={setCamera}
-            onCameraSettled={recordCamera}
-            onSelectionChange={setSelectedId}
-            onFilesDropped={addImageFiles}
-            onActivity={markActivity}
-          />
+          {preferences.sceneMode === 'canvas' ? (
+            <CanvasBoard
+              document={board}
+              camera={camera}
+              tool={tool}
+              color={preferences.color}
+              strokeWidth={preferences.strokeWidth}
+              canvasTheme={activeTheme.canvas}
+              noteColor={activeTheme.noteColor}
+              selectedId={selectedId}
+              onAddItem={addItem}
+              onUpdateItem={updateItem}
+              onDeleteItem={deleteItem}
+              onCameraChange={setCamera}
+              onCameraSettled={recordCamera}
+              onSelectionChange={setSelectedId}
+              onFilesDropped={addImageFiles}
+              onActivity={markActivity}
+            />
+          ) : (
+            <Suspense
+              fallback={
+                <div className="spatial-viewport">
+                  <div className="spatial-empty">
+                    <Sparkles />
+                    <strong>Opening spatial view…</strong>
+                  </div>
+                </div>
+              }
+            >
+              <SpatialBoard
+                document={board}
+                canvasTheme={activeTheme.canvas}
+                accentColor={activeTheme.inkColors[0]}
+                selectedId={selectedId}
+                onSelectionChange={setSelectedId}
+                onActivity={markActivity}
+              />
+            </Suspense>
+          )}
 
-          {(tool === 'pen' || tool === 'highlighter') && (
+          <div className="scene-mode-switcher" aria-label="Board view">
+            <button
+              type="button"
+              className={preferences.sceneMode === 'canvas' ? 'is-active' : ''}
+              aria-pressed={preferences.sceneMode === 'canvas'}
+              onClick={() =>
+                setPreferences((current) => ({
+                  ...current,
+                  sceneMode: 'canvas',
+                }))
+              }
+            >
+              <Pencil /> Canvas
+            </button>
+            <button
+              type="button"
+              className={preferences.sceneMode === 'spatial' ? 'is-active' : ''}
+              aria-pressed={preferences.sceneMode === 'spatial'}
+              onClick={() =>
+                setPreferences((current) => ({
+                  ...current,
+                  sceneMode: 'spatial',
+                }))
+              }
+            >
+              <Box /> Spatial
+              <small>3D</small>
+            </button>
+          </div>
+
+          {preferences.sceneMode === 'canvas' &&
+            (tool === 'pen' || tool === 'highlighter') && (
             <div className="tool-options">
               <div className="color-options" aria-label="Ink color">
                 {activeTheme.inkColors.map((color) => (
@@ -915,7 +978,10 @@ function App() {
             </div>
           )}
 
-          {board.items.length === 0 && !welcomeDismissed && loaded && (
+          {preferences.sceneMode === 'canvas' &&
+            board.items.length === 0 &&
+            !welcomeDismissed &&
+            loaded && (
             <div className="welcome-card">
               <button
                 className="welcome-close"
@@ -960,7 +1026,7 @@ function App() {
             </div>
           )}
 
-          <div className="zoom-controls">
+          {preferences.sceneMode === 'canvas' && <div className="zoom-controls">
             <button type="button" onClick={() => zoomBy(0.82)} aria-label="Zoom out">
               <Minus />
             </button>
@@ -973,12 +1039,14 @@ function App() {
             <button type="button" onClick={fitBoard} aria-label="Fit board">
               <BringToFront />
             </button>
-          </div>
+          </div>}
 
           <footer className="board-status">
             <span>
               <span className="status-dot" />
-              Local-first · private by default
+              {preferences.sceneMode === 'spatial'
+                ? 'Spatial view · local WebGL'
+                : 'Local-first · private by default'}
             </span>
             <span>{board.items.length} {board.items.length === 1 ? 'object' : 'objects'}</span>
             <button type="button" onClick={() => setHelpOpen(true)}>
