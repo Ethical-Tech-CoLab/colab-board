@@ -4,7 +4,7 @@
 
 A local-first spatial thinking surface for touch displays, classrooms, studios, and collaborative workshops. It runs entirely in the browser and can be hosted on GitHub Pages without a server.
 
-## Current release — v0.9.0
+## Current release — v0.9.1
 
 - Pressure-aware pen and highlighter input
 - Infinite pan-and-zoom canvas with mouse, touch, and pen support
@@ -16,7 +16,8 @@ A local-first spatial thinking surface for touch displays, classrooms, studios, 
 - Collapsible right-hand board settings panel
 - Full-viewport responsive layouts for compact landscape, tablet portrait, and
   portrait-oriented shared displays
-- One global, persisted glass-overlay transparency control with a quick reset
+- One global, persisted glass-overlay opacity control with a quick reset; the
+  canvas remains visibly present beneath desktop tools and Settings
 - QR board handoff with one-use, encrypted peer-to-peer transfer
 - Mobile receiving preview with Save Project and Open in CoLab Board actions
 - Personal-device-to-board intake for CoLab projects and images using a short

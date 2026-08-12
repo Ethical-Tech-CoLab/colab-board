@@ -992,7 +992,11 @@ function App() {
         </div>
       </header>
 
-      <main className="workspace">
+      <main
+        className={`workspace${settingsOpen ? ' has-settings' : ''}${
+          settingsCollapsed ? ' is-settings-collapsed' : ''
+        }`}
+      >
         <aside className="toolbar" aria-label="Drawing tools">
           {TOOL_CONFIG.map(({ id, label, shortcut, icon: Icon }) => (
             <button
@@ -1469,7 +1473,7 @@ function App() {
 
             <label className="overlay-opacity-control">
               <span>
-                Overlay transparency
+                Overlay opacity
                 <output>{preferences.overlayOpacity}%</output>
               </span>
               <input
@@ -1485,7 +1489,9 @@ function App() {
                   }))
                 }
               />
-              <small>Adjusts header, tools, panels, and floating controls.</small>
+              <small>
+                Lower values reveal more of the board beneath glass panels.
+              </small>
             </label>
             <button
               className="overlay-opacity-reset"
@@ -1498,7 +1504,7 @@ function App() {
                 }))
               }
             >
-              <RotateCcw /> Reset overlay transparency
+              <RotateCcw /> Reset overlay opacity
             </button>
 
             <label>
