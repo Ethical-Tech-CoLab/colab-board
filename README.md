@@ -4,7 +4,7 @@
 
 A local-first spatial thinking surface for touch displays, classrooms, studios, and collaborative workshops. It runs entirely in the browser and can be hosted on GitHub Pages without a server.
 
-## Current release — v0.6.0
+## Current release — v0.6.1
 
 - Pressure-aware pen and highlighter input
 - Infinite pan-and-zoom canvas with mouse, touch, and pen support

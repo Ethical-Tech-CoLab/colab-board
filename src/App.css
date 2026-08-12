@@ -302,11 +302,10 @@
   position: absolute;
   z-index: 12;
   top: 18px;
-  left: 50%;
+  right: 18px;
   display: flex;
   gap: 3px;
   padding: 4px;
-  transform: translateX(-50%);
   border: 1px solid var(--brand-border);
   border-radius: 999px;
   background: color-mix(in srgb, var(--brand-panel) 88%, transparent);
@@ -667,6 +666,7 @@
 @media (max-width: 700px) {
   .scene-mode-switcher {
     top: 10px;
+    right: 10px;
   }
 
   .scene-mode-switcher button {
@@ -2439,7 +2439,7 @@ kbd {
   }
 
   .tool-options {
-    top: 10px;
+    top: 58px;
     max-width: calc(100% - 18px);
     gap: 8px;
   }
