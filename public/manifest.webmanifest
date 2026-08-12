@@ -1,0 +1,25 @@
+{
+  "name": "Ethical Tech CoLab Board",
+  "short_name": "CoLab Board",
+  "description": "A local-first spatial thinking surface for drawing, workshops, and session replay.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#120c1a",
+  "theme_color": "#120c1a",
+  "icons": [
+    {
+      "src": "./etc-logo.png",
+      "sizes": "238x238",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

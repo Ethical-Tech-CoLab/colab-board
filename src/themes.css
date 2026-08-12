@@ -1,0 +1,76 @@
+:root,
+[data-brand='ethical-tech'] {
+  color-scheme: dark;
+  --brand-background: #120c1a;
+  --brand-surface: #1b1226;
+  --brand-panel: #201630;
+  --brand-card: #241a35;
+  --brand-foreground: #f3eefb;
+  --brand-muted: rgba(233, 228, 244, 0.58);
+  --brand-border: rgba(139, 92, 246, 0.26);
+  --brand-border-strong: rgba(200, 240, 75, 0.4);
+  --brand-accent: #c8f04b;
+  --brand-accent-hover: #d8ff62;
+  --brand-accent-ink: #141414;
+  --brand-secondary: #3b1878;
+  --brand-secondary-ink: #f3eefb;
+  --brand-canvas: #171020;
+  --brand-grid: rgba(200, 240, 75, 0.09);
+  --brand-danger: #ff8779;
+  --brand-success: #c8f04b;
+  --brand-warning: #f7a53b;
+  --brand-glow: #7b5cff;
+  --brand-glow-2: #b8d400;
+  --brand-control: rgba(255, 255, 255, 0.055);
+  --brand-control-hover: rgba(200, 240, 75, 0.11);
+  --brand-glass: color-mix(in srgb, #120c1a 84%, transparent);
+  --brand-panel-glass: color-mix(in srgb, #201630 92%, transparent);
+  --brand-overlay: rgba(9, 5, 14, 0.68);
+  --brand-shadow-color: rgba(6, 3, 10, 0.42);
+  --brand-selection: #c8f04b;
+  --brand-font-sans: 'Space Mono', ui-monospace, monospace;
+  --brand-font-heading: 'Bebas Neue', 'Arial Narrow', sans-serif;
+  --brand-font-display: 'Bebas Neue', 'Arial Narrow', sans-serif;
+  --brand-radius: 8px;
+  --brand-radius-large: 14px;
+  --brand-grain-opacity: 0.035;
+}
+
+[data-brand='studio'] {
+  color-scheme: light;
+  --brand-background: #e9ece6;
+  --brand-surface: #fbfbf7;
+  --brand-panel: #ffffff;
+  --brand-card: #ffffff;
+  --brand-foreground: #26332d;
+  --brand-muted: #68756f;
+  --brand-border: rgba(40, 55, 47, 0.13);
+  --brand-border-strong: rgba(35, 115, 89, 0.34);
+  --brand-accent: #286b57;
+  --brand-accent-hover: #174c3d;
+  --brand-accent-ink: #ffffff;
+  --brand-secondary: #e0eee7;
+  --brand-secondary-ink: #1d5c49;
+  --brand-canvas: #f7f6f0;
+  --brand-grid: rgba(63, 76, 69, 0.09);
+  --brand-danger: #a13e34;
+  --brand-success: #4e9b75;
+  --brand-warning: #d6922e;
+  --brand-glow: #8eb6a7;
+  --brand-glow-2: #d8b76e;
+  --brand-control: #eef1ec;
+  --brand-control-hover: #e2e8e1;
+  --brand-glass: rgba(251, 251, 247, 0.96);
+  --brand-panel-glass: rgba(255, 255, 252, 0.96);
+  --brand-overlay: rgba(22, 33, 27, 0.48);
+  --brand-shadow-color: rgba(27, 43, 35, 0.16);
+  --brand-selection: #27735b;
+  --brand-font-sans:
+    Aptos, 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --brand-font-heading:
+    Aptos, 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  --brand-font-display: Georgia, 'Times New Roman', serif;
+  --brand-radius: 10px;
+  --brand-radius-large: 20px;
+  --brand-grain-opacity: 0;
+}
