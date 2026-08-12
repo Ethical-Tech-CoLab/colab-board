@@ -20,6 +20,7 @@ export type BrandThemeId =
   | 'sunrise'
   | 'custom'
 export type InkStyle = 'solid' | 'sparkle'
+export type TouchMode = 'pan' | 'draw'
 export type SceneMode = 'canvas' | 'spatial'
 export type PerspectiveGuide = 'none' | 'grid' | 'one-point' | 'two-point'
 
@@ -130,6 +131,7 @@ export interface Preferences {
   perspectiveGuide: PerspectiveGuide
   inkStyle: InkStyle
   overlayOpacity: number
+  touchMode: TouchMode
 }
 
 export type SaveState = 'loading' | 'saving' | 'saved' | 'error'

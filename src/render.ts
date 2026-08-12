@@ -1,4 +1,8 @@
-import { getItemBounds, sparkleHue, sparkleOffset } from './board'
+import {
+  getItemBounds,
+  sparkleOffset,
+  sparkleTrailHue,
+} from './board'
 import type { CanvasBrandTokens } from './branding'
 import type {
   BoardItem,
@@ -56,16 +60,25 @@ function drawStroke(
 
   const sparkle = stroke.effect === 'sparkle'
   const seed = stroke.seed ?? 0
+  const distances = [0]
+  for (let index = 1; index < stroke.points.length; index += 1) {
+    const previous = stroke.points[index - 1]
+    const point = stroke.points[index]
+    distances.push(
+      distances[index - 1] + Math.hypot(point.x - previous.x, point.y - previous.y),
+    )
+  }
+  const isDot = distances.at(-1)! < 0.01
   context.save()
   context.strokeStyle = stroke.color
   context.fillStyle = sparkle
-    ? `hsl(${sparkleHue(seed, 0)} 92% 65%)`
+    ? `hsl(${sparkleTrailHue(seed, 0)} 96% 62%)`
     : stroke.color
   context.globalAlpha = stroke.opacity
   context.lineCap = 'round'
   context.lineJoin = 'round'
 
-  if (stroke.points.length === 1) {
+  if (stroke.points.length === 1 || isDot) {
     const point = stroke.points[0]
     const radius = (stroke.width * Math.max(0.35, point.pressure)) / 2
     context.beginPath()
@@ -78,9 +91,25 @@ function drawStroke(
       context.lineWidth =
         stroke.width *
         Math.max(0.35, (previous.pressure + point.pressure) / 2)
-      context.strokeStyle = sparkle
-        ? `hsl(${sparkleHue(seed, index)} 92% 65%)`
-        : stroke.color
+      if (sparkle) {
+        const gradient = context.createLinearGradient(
+          previous.x,
+          previous.y,
+          point.x,
+          point.y,
+        )
+        gradient.addColorStop(
+          0,
+          `hsl(${sparkleTrailHue(seed, distances[index - 1])} 96% 60%)`,
+        )
+        gradient.addColorStop(
+          1,
+          `hsl(${sparkleTrailHue(seed, distances[index])} 96% 60%)`,
+        )
+        context.strokeStyle = gradient
+      } else {
+        context.strokeStyle = stroke.color
+      }
       context.beginPath()
       context.moveTo(previous.x, previous.y)
       context.lineTo(point.x, point.y)
@@ -89,31 +118,97 @@ function drawStroke(
   }
 
   if (sparkle) {
-    context.globalAlpha = Math.min(1, stroke.opacity * 0.9)
-    stroke.points.forEach((point, index) => {
-      if (index % 3 !== 0) return
-      const offset = sparkleOffset(seed, index) * stroke.width * 0.9
-      const radius =
-        stroke.width * (0.16 + Math.abs(sparkleOffset(seed, index + 11)) * 0.17)
-      context.save()
-      context.translate(point.x + offset, point.y - offset * 0.55)
-      context.rotate((sparkleHue(seed, index) / 180) * Math.PI)
-      context.fillStyle = `hsl(${sparkleHue(seed, index + 7)} 100% 78%)`
-      context.shadowColor = context.fillStyle
-      context.shadowBlur = radius * 3
-      context.beginPath()
-      for (let ray = 0; ray < 8; ray += 1) {
-        const angle = (ray * Math.PI) / 4
-        const distance = ray % 2 === 0 ? radius * 2.3 : radius * 0.55
-        const x = Math.cos(angle) * distance
-        const y = Math.sin(angle) * distance
-        if (ray === 0) context.moveTo(x, y)
-        else context.lineTo(x, y)
+    context.globalCompositeOperation = 'screen'
+    if (isDot) {
+      const point = stroke.points[0]
+      const pressure = Math.max(0.35, point.pressure)
+      for (let fleck = 0; fleck < 18; fleck += 1) {
+        const angle = sparkleOffset(seed, fleck * 3) * Math.PI
+        const distance =
+          Math.sqrt(Math.abs(sparkleOffset(seed, fleck * 3 + 1))) *
+          stroke.width *
+          pressure *
+          0.48
+        const radius =
+          0.3 + Math.abs(sparkleOffset(seed, fleck * 3 + 2)) * stroke.width * 0.045
+        context.globalAlpha =
+          stroke.opacity *
+          (0.45 + Math.abs(sparkleOffset(seed, fleck * 3 + 3)) * 0.5)
+        context.fillStyle = `hsl(${sparkleTrailHue(seed, fleck * 9)} 100% 88%)`
+        context.beginPath()
+        context.arc(
+          point.x + Math.cos(angle) * distance,
+          point.y + Math.sin(angle) * distance,
+          radius,
+          0,
+          Math.PI * 2,
+        )
+        context.fill()
       }
-      context.closePath()
-      context.fill()
-      context.restore()
-    })
+    } else {
+      const spacing = Math.max(1.8, stroke.width * 0.26)
+      let sampleIndex = 0
+      for (let index = 1; index < stroke.points.length; index += 1) {
+        const previous = stroke.points[index - 1]
+        const point = stroke.points[index]
+        const deltaX = point.x - previous.x
+        const deltaY = point.y - previous.y
+        const length = Math.hypot(deltaX, deltaY)
+        if (length < 0.01) continue
+        const tangentX = deltaX / length
+        const tangentY = deltaY / length
+        const normalX = -tangentY
+        const normalY = tangentX
+        const steps = Math.max(1, Math.ceil(length / spacing))
+
+        for (let step = 1; step <= steps; step += 1) {
+          const progress = step / steps
+          const pressure = Math.max(
+            0.35,
+            previous.pressure + (point.pressure - previous.pressure) * progress,
+          )
+          const distance = distances[index - 1] + length * progress
+          for (let fleck = 0; fleck < 2; fleck += 1) {
+            const randomIndex = sampleIndex * 7 + fleck * 31
+            const across =
+              sparkleOffset(seed, randomIndex) *
+              stroke.width *
+              pressure *
+              0.43
+            const along = sparkleOffset(seed, randomIndex + 1) * spacing * 0.34
+            const radius =
+              0.28 +
+              Math.abs(sparkleOffset(seed, randomIndex + 2)) *
+                stroke.width *
+                0.045
+            context.globalAlpha =
+              stroke.opacity *
+              (0.38 +
+                Math.abs(sparkleOffset(seed, randomIndex + 3)) * 0.58)
+            context.fillStyle = `hsl(${sparkleTrailHue(
+              seed,
+              distance + sparkleOffset(seed, randomIndex + 4) * 34,
+            )} 100% 88%)`
+            context.beginPath()
+            context.arc(
+              previous.x +
+                deltaX * progress +
+                tangentX * along +
+                normalX * across,
+              previous.y +
+                deltaY * progress +
+                tangentY * along +
+                normalY * across,
+              radius,
+              0,
+              Math.PI * 2,
+            )
+            context.fill()
+          }
+          sampleIndex += 1
+        }
+      }
+    }
   }
   context.restore()
 }

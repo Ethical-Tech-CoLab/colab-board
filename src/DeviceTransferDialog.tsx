@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import QRCode from 'qrcode'
 import { isBoardDocument } from './board'
+import TransferHelp from './TransferHelp'
 import {
   formatTransferCode,
   isValidTransferCode,
@@ -315,9 +316,16 @@ export default function DeviceTransferDialog({
               </h2>
             </div>
           </div>
-          <button type="button" aria-label="Close device transfer" onClick={onClose}>
-            <X />
-          </button>
+          <div className="transfer-header-actions">
+            <TransferHelp />
+            <button
+              type="button"
+              aria-label="Close device transfer"
+              onClick={onClose}
+            >
+              <X />
+            </button>
+          </div>
         </header>
 
         {mode === 'send' ? (

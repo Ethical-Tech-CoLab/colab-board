@@ -11,7 +11,12 @@ import {
 } from 'lucide-react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { getItemBounds, getSpatialTransform, sparkleHue } from './board'
+import {
+  getItemBounds,
+  getSpatialTransform,
+  sparkleOffset,
+  sparkleTrailHue,
+} from './board'
 import type { CanvasBrandTokens } from './branding'
 import type {
   BoardDocument,
@@ -59,11 +64,15 @@ function createPressureGeometry(
   sourcePoints: Point[],
   center: { x: number; y: number },
   width: number,
+  sparkleSeed?: number,
 ): THREE.BufferGeometry {
   const points = samplePoints(sourcePoints)
   const sides = 8
   const positions: number[] = []
+  const colors: number[] = []
   const indices: number[] = []
+  const color = new THREE.Color()
+  let distance = 0
 
   points.forEach((point, index) => {
     const previous = points[Math.max(0, index - 1)]
@@ -80,6 +89,17 @@ function createPressureGeometry(
     const x = (point.x - center.x) * WORLD_SCALE
     const y = -(point.y - center.y) * WORLD_SCALE
     const z = (point.pressure - 0.5) * radius * 0.8
+    if (index > 0) {
+      distance += Math.hypot(point.x - previous.x, point.y - previous.y)
+    }
+    if (sparkleSeed !== undefined) {
+      color.setHSL(
+        sparkleTrailHue(sparkleSeed, distance) / 360,
+        0.96,
+        0.6,
+        THREE.SRGBColorSpace,
+      )
+    }
 
     for (let side = 0; side < sides; side += 1) {
       const angle = (side / sides) * Math.PI * 2
@@ -89,6 +109,9 @@ function createPressureGeometry(
         y + normalY * around,
         z + Math.sin(angle) * radius,
       )
+      if (sparkleSeed !== undefined) {
+        colors.push(color.r, color.g, color.b)
+      }
       if (index === 0) continue
       const current = index * sides + side
       const nextSide = index * sides + ((side + 1) % sides)
@@ -104,6 +127,9 @@ function createPressureGeometry(
     'position',
     new THREE.Float32BufferAttribute(positions, 3),
   )
+  if (colors.length > 0) {
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
+  }
   geometry.setIndex(indices)
   geometry.computeVertexNormals()
   return geometry
@@ -229,35 +255,63 @@ function createSpatialItem(
           item.points,
           { x: centerX, y: centerY },
           item.width,
+          item.effect === 'sparkle' ? (item.seed ?? 0) : undefined,
         )
     const material = new THREE.MeshStandardMaterial({
-      color: item.effect === 'sparkle' ? '#f3eefb' : item.color,
+      color: item.effect === 'sparkle' ? '#ffffff' : item.color,
       emissive: item.effect === 'sparkle' ? '#7b5cff' : item.color,
-      emissiveIntensity: item.effect === 'sparkle' ? 0.32 : 0.13,
+      emissiveIntensity: item.effect === 'sparkle' ? 0.22 : 0.13,
       metalness: 0.1,
       opacity: item.opacity,
       roughness: 0.26,
       transparent: item.opacity < 1,
+      vertexColors: item.effect === 'sparkle' && !isDot,
     })
     group.add(new THREE.Mesh(geometry, material))
     if (item.effect === 'sparkle') {
       const positions: number[] = []
       const colors: number[] = []
       const color = new THREE.Color()
-      item.points.forEach((point, pointIndex) => {
-        if (pointIndex % 3 !== 0) return
-        positions.push(
-          (point.x - centerX) * WORLD_SCALE,
-          -(point.y - centerY) * WORLD_SCALE,
-          item.width * WORLD_SCALE * (0.7 + (pointIndex % 5) * 0.16),
-        )
-        color.setHSL(
-          sparkleHue(item.seed ?? 0, pointIndex) / 360,
-          0.95,
-          0.68,
-          THREE.SRGBColorSpace,
-        )
-        colors.push(color.r, color.g, color.b)
+      const sampled = samplePoints(item.points)
+      let distance = 0
+      sampled.forEach((point, pointIndex) => {
+        const previous = sampled[Math.max(0, pointIndex - 1)]
+        const next = sampled[Math.min(sampled.length - 1, pointIndex + 1)]
+        if (pointIndex > 0) {
+          distance += Math.hypot(point.x - previous.x, point.y - previous.y)
+        }
+        const deltaX = next.x - previous.x
+        const deltaY = next.y - previous.y
+        const length = Math.hypot(deltaX, deltaY) || 1
+        const normalX = -deltaY / length
+        const normalY = deltaX / length
+
+        for (let fleck = 0; fleck < 2; fleck += 1) {
+          const randomIndex = pointIndex * 7 + fleck * 31
+          const across =
+            sparkleOffset(item.seed ?? 0, randomIndex) *
+            item.width *
+            Math.max(0.35, point.pressure) *
+            0.4
+          positions.push(
+            (point.x + normalX * across - centerX) * WORLD_SCALE,
+            -(point.y + normalY * across - centerY) * WORLD_SCALE,
+            item.width *
+              WORLD_SCALE *
+              (0.45 +
+                Math.abs(sparkleOffset(item.seed ?? 0, randomIndex + 1)) * 0.3),
+          )
+          color.setHSL(
+            sparkleTrailHue(
+              item.seed ?? 0,
+              distance + sparkleOffset(item.seed ?? 0, randomIndex + 2) * 34,
+            ) / 360,
+            1,
+            0.84,
+            THREE.SRGBColorSpace,
+          )
+          colors.push(color.r, color.g, color.b)
+        }
       })
       const sparkleGeometry = new THREE.BufferGeometry()
       sparkleGeometry.setAttribute(
@@ -274,7 +328,8 @@ function createSpatialItem(
           new THREE.PointsMaterial({
             blending: THREE.AdditiveBlending,
             depthWrite: false,
-            size: Math.max(0.035, item.width * WORLD_SCALE * 1.4),
+            opacity: 0.9,
+            size: Math.max(0.014, item.width * WORLD_SCALE * 0.24),
             sizeAttenuation: true,
             transparent: true,
             vertexColors: true,

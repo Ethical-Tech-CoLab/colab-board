@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createBoard } from './board'
 import {
+  RECEIVE_TIMEOUT_MS,
   TRANSFER_PROTOCOL,
   createBoardTransferEnvelope,
   createImageTransferEnvelope,
@@ -8,6 +9,7 @@ import {
   generateTransferCode,
   isValidTransferCode,
   normalizeTransferCode,
+  transferErrorMessage,
   transferCodeFromValue,
   validateBoardTransferEnvelope,
   validateTransferEnvelope,
@@ -21,6 +23,24 @@ describe('transfer codes', () => {
     expect(isValidTransferCode(code)).toBe(true)
     expect(formatTransferCode(code)).toMatch(/^[A-Z0-9]{4} [A-Z0-9]{4}$/)
     expect(normalizeTransferCode(formatTransferCode(code))).toBe(code)
+  })
+
+  describe('transfer diagnostics', () => {
+    it('allows enough time for a mobile browser to negotiate', () => {
+      expect(RECEIVE_TIMEOUT_MS).toBe(90_000)
+    })
+
+    it('explains signaling and network failures', () => {
+      expect(
+        transferErrorMessage({ type: 'peer-unavailable' }, 'receive'),
+      ).toContain('sending device')
+      expect(
+        transferErrorMessage({ type: 'negotiation-failed' }, 'receive'),
+      ).toContain('network blocked')
+      expect(transferErrorMessage({ type: 'network' }, 'send')).toContain(
+        'transfer service',
+      )
+    })
   })
 
   it('rejects incomplete or ambiguous codes', () => {

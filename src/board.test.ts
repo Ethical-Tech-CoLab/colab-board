@@ -12,6 +12,7 @@ import {
   replayAt,
   sparkleHue,
   sparkleOffset,
+  sparkleTrailHue,
   withSpatialTransform,
 } from './board'
 import {
@@ -177,6 +178,8 @@ describe('board document events', () => {
     expect(sparkleOffset(42, 7)).toBe(sparkleOffset(42, 7))
     expect(sparkleOffset(42, 7)).toBeGreaterThanOrEqual(-1)
     expect(sparkleOffset(42, 7)).toBeLessThanOrEqual(1)
+    expect(sparkleTrailHue(42, 120)).toBe(sparkleTrailHue(42, 120))
+    expect(sparkleTrailHue(42, 120)).not.toBe(sparkleTrailHue(42, 121))
   })
 })
 

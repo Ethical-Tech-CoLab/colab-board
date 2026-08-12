@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ethical-tech-colab-board-v13'
+const CACHE_NAME = 'ethical-tech-colab-board-v14'
 const APP_SHELL = [
   './',
   './index.html',

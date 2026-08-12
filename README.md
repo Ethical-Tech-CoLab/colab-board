@@ -4,9 +4,11 @@
 
 A local-first spatial thinking surface for touch displays, classrooms, studios, and collaborative workshops. It runs entirely in the browser and can be hosted on GitHub Pages without a server.
 
-## Current release — v0.9.1
+## Current release — v0.10.0
 
 - Pressure-aware pen and highlighter input
+- Surface-style touch input: one finger grabs the complete canvas, two fingers
+  pinch, and a stylus draws; Settings can switch finger input back to drawing
 - Infinite pan-and-zoom canvas with mouse, touch, and pen support
 - Sticky notes, images, eraser, selection, undo, and redo
 - IndexedDB autosave with portable JSON project files and PNG export
@@ -31,8 +33,9 @@ A local-first spatial thinking surface for touch displays, classrooms, studios, 
 - Local Theme-It wizard with uploaded-reference and screen color sampling,
   primary/accent/canvas/surface controls, local logo support, automatic contrast
   derivation, live preview, persistence, and portable theme pack import/export
-- Deterministic sparkly multicolor ink across drawing, autosave, replay, PNG
-  rendering, and the Three.js spatial view
+- Dense Surface-inspired rainbow glitter ink with smooth color travel and
+  deterministic micro-sparkles across drawing, autosave, replay, PNG rendering,
+  and the Three.js spatial view
 - Opt-in Three.js spatial view with orbit navigation, floating object layers,
   dimensional pressure-aware ink, illuminated notes, and image panels
 - Persistent spatial transforms for object depth, X/Y tilt, rotation, and scale
@@ -58,6 +61,25 @@ All board content stays on the device unless a user explicitly exports a project
 QR handoff uses the public PeerJS service for ephemeral connection signaling;
 board content itself travels directly between devices over an encrypted WebRTC
 data channel and is not stored by the signaling service.
+
+### QR transfer requirements
+
+- Both devices need a current browser with WebRTC data-channel support and
+  internet access to PeerJS signaling and relay services.
+- Keep the source board, QR card, and both devices awake until delivery
+  completes. A transfer code expires after 10 minutes and delivers once.
+- Camera permission is only required to scan a QR card inside CoLab Board. A
+  phone's system camera can open a **Take board** link without app permission.
+- VPNs, captive portals, and restrictive corporate or guest networks can block
+  WebRTC even when normal web browsing works. Retry with the source still open,
+  disable the VPN, or use another Wi-Fi or cellular network.
+- Use **Download project** and move the `.colab.json` file manually when a
+  network blocks live transfer.
+
+Every transfer dialog includes a **?** with these requirements and
+troubleshooting steps. Receivers wait up to 90 seconds, retry brief
+sender-readiness races automatically, and report whether signaling, sender
+availability, or WebRTC negotiation failed.
 
 ## Branding and themes
 

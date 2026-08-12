@@ -1218,6 +1218,13 @@ kbd {
   font-weight: 650;
 }
 
+.settings-hint {
+  margin: 8px 2px 0;
+  color: var(--brand-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
 .scene-options {
   display: flex;
   flex-direction: column;
@@ -1445,7 +1452,14 @@ kbd {
   width: 22px;
 }
 
-.transfer-dialog > header > button {
+.transfer-header-actions {
+  position: relative;
+  display: flex;
+  gap: 7px;
+}
+
+.transfer-header-actions > button,
+.transfer-help > summary {
   width: 36px;
   height: 36px;
   display: grid;
@@ -1459,8 +1473,91 @@ kbd {
   cursor: pointer;
 }
 
-.transfer-dialog > header > button svg {
+.transfer-header-actions > button svg,
+.transfer-help > summary svg {
   width: 18px;
+}
+
+.transfer-help > summary {
+  list-style: none;
+}
+
+.transfer-help > summary::-webkit-details-marker {
+  display: none;
+}
+
+.transfer-help[open] > summary {
+  color: var(--brand-accent);
+  background: var(--brand-secondary);
+}
+
+.transfer-help-card {
+  position: absolute;
+  z-index: 4;
+  top: 43px;
+  right: 0;
+  width: min(390px, calc(100vw - 70px));
+  padding: 18px;
+  border: 1px solid var(--brand-border-strong);
+  border-radius: 13px;
+  background: var(--brand-panel);
+  box-shadow: 0 18px 60px var(--brand-shadow-color);
+}
+
+.transfer-help-card h3 {
+  margin: 4px 0 14px;
+  font-family: var(--brand-font-display);
+  font-size: 22px;
+  font-weight: 400;
+  text-transform: uppercase;
+}
+
+.transfer-help-card ul {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.transfer-help-card li,
+.transfer-help-warning,
+.transfer-help-card > p {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 10px;
+  margin: 0;
+  color: var(--brand-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.transfer-help-card li > svg,
+.transfer-help-warning > svg,
+.transfer-help-card > p > svg {
+  width: 18px;
+  color: var(--brand-accent);
+}
+
+.transfer-help-card li strong,
+.transfer-help-warning strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--brand-foreground);
+  font-size: 11px;
+}
+
+.transfer-help-warning {
+  padding: 11px;
+  margin: 14px 0 11px;
+  border: 1px solid color-mix(in srgb, var(--brand-warning) 38%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--brand-warning) 9%, transparent);
+}
+
+.transfer-help-card > p {
+  padding-top: 10px;
+  border-top: 1px solid var(--brand-border);
 }
 
 .transfer-intro {
@@ -1635,6 +1732,21 @@ kbd {
   width: 45px;
   height: 45px;
   color: var(--brand-accent);
+}
+
+.transfer-waiting.is-error > svg {
+  color: var(--brand-danger);
+}
+
+.transfer-retry {
+  min-width: 120px;
+  height: 42px;
+  margin-top: 18px;
+  color: var(--brand-accent-ink);
+  border: 1px solid var(--brand-accent);
+  border-radius: 10px;
+  background: var(--brand-accent);
+  cursor: pointer;
 }
 
 .transfer-waiting h3 {

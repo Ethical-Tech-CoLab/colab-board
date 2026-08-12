@@ -4,6 +4,7 @@ import { isBoardDocument } from './board'
 
 export const TRANSFER_PROTOCOL = 'ethical-tech-colab-transfer-v1'
 export const TRANSFER_TTL_MS = 10 * 60 * 1_000
+export const RECEIVE_TIMEOUT_MS = 90_000
 const CODE_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'
 const PEER_PREFIX = 'etc-colab-board-'
 
@@ -65,21 +66,56 @@ interface IncomingOptions {
   onError: (error: Error) => void
 }
 
-function asError(value: unknown, fallback: string): Error {
-  return value instanceof Error ? value : new Error(fallback)
+function transferErrorType(error: unknown): string | undefined {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'type' in error &&
+    typeof error.type === 'string'
+  ) {
+    return error.type
+  }
+  return undefined
+}
+
+export function transferErrorMessage(
+  error: unknown,
+  direction: 'send' | 'receive',
+): string {
+  const type = transferErrorType(error)
+  if (type === 'browser-incompatible') {
+    return 'This browser cannot make a secure WebRTC transfer. Update it or download the project instead.'
+  }
+  if (
+    type === 'network' ||
+    type === 'server-error' ||
+    type === 'socket-error' ||
+    type === 'socket-closed' ||
+    type === 'disconnected'
+  ) {
+    return 'The transfer service could not be reached. Check internet access, then retry with both pages open.'
+  }
+  if (type === 'peer-unavailable') {
+    return 'The sending device is not available. Keep its QR card open and awake, then try again.'
+  }
+  if (
+    type === 'webrtc' ||
+    type === 'negotiation-failed' ||
+    type === 'connection-closed'
+  ) {
+    return 'The devices found each other, but the network blocked the WebRTC connection. Disable a VPN or try another Wi-Fi or cellular network.'
+  }
+  if (type === 'unavailable-id') {
+    return 'That transfer code is already in use. Create a new transfer and try again.'
+  }
+  if (error instanceof Error && error.message) return error.message
+  return direction === 'send'
+    ? 'The transfer could not be started.'
+    : 'The devices could not connect. Keep both pages open and try again.'
 }
 
 function peerIdForCode(code: string): string {
   return `${PEER_PREFIX}${normalizeTransferCode(code).toLowerCase()}`
-}
-
-function connectionError(
-  connection: DataConnection,
-  onError: (error: Error) => void,
-) {
-  connection.on('error', (error) => {
-    onError(asError(error, 'The device connection was interrupted.'))
-  })
 }
 
 function isTransferImage(value: unknown): value is TransferImage {
@@ -241,11 +277,19 @@ export function startOutgoingTransfer(
   const peer = new Peer(peerIdForCode(code), { debug: 1 })
   const expiresAt = Date.now() + TRANSFER_TTL_MS
   let delivered = false
+  let failed = false
   let expiryTimer = 0
 
   const close = () => {
     window.clearTimeout(expiryTimer)
     peer.destroy()
+  }
+  const fail = (error: unknown) => {
+    if (failed || delivered) return
+    failed = true
+    options.onStatus('error')
+    options.onError(new Error(transferErrorMessage(error, 'send')))
+    close()
   }
 
   options.onStatus('starting')
@@ -262,7 +306,7 @@ export function startOutgoingTransfer(
       return
     }
     options.onStatus('connecting')
-    connectionError(connection, options.onError)
+    connection.on('error', fail)
     connection.on('open', () => {
       options.onStatus('sending')
       const envelope =
@@ -280,15 +324,12 @@ export function startOutgoingTransfer(
         window.setTimeout(close, 750)
       }
     })
+    connection.on('close', () => {
+      if (!delivered && !failed) options.onStatus('ready')
+    })
   })
-  peer.on('error', (error) => {
-    const message =
-      error.type === 'unavailable-id'
-        ? 'That transfer code is already in use. Try creating another.'
-        : 'The transfer service could not be reached.'
-    options.onStatus('error')
-    options.onError(asError(error, message))
-  })
+  peer.on('error', fail)
+  peer.on('disconnected', () => fail({ type: 'disconnected' }))
 
   return {
     code,
@@ -318,24 +359,44 @@ export function receiveTransfer(
   const peer = new Peer({ debug: 1 })
   let connection: DataConnection | undefined
   let timeout = 0
+  let retryTimer = 0
+  let finished = false
+  let peerOpened = false
   const close = () => {
     window.clearTimeout(timeout)
+    window.clearTimeout(retryTimer)
     connection?.close()
     peer.destroy()
   }
+  const fail = (error: unknown) => {
+    if (finished) return
+    finished = true
+    options.onStatus('error')
+    options.onError(new Error(transferErrorMessage(error, 'receive')))
+    close()
+  }
 
   options.onStatus('starting')
-  peer.on('open', () => {
+  const connect = () => {
+    if (finished || !peerOpened) return
+    connection?.close()
     options.onStatus('connecting')
     connection = peer.connect(peerIdForCode(code), {
       reliable: true,
       serialization: 'binary',
     })
-    connectionError(connection, options.onError)
+    connection.on('error', fail)
+    connection.on('iceStateChanged', (state) => {
+      if (state === 'failed') fail({ type: 'negotiation-failed' })
+    })
     connection.on('open', () => options.onStatus('sending'))
     connection.on('data', (data) => {
       decodeEnvelope(data)
         .then((envelope) => {
+          if (finished) return
+          finished = true
+          window.clearTimeout(timeout)
+          window.clearTimeout(retryTimer)
           options.onContent(
             envelope.kind === 'board'
               ? { kind: 'board', board: envelope.board }
@@ -343,29 +404,33 @@ export function receiveTransfer(
           )
           options.onStatus('received')
           connection?.send('received')
+          window.setTimeout(close, 750)
         })
-        .catch((error: unknown) => {
-          options.onStatus('error')
-          options.onError(asError(error, 'The received board could not be read.'))
-        })
+        .catch(fail)
     })
+  }
+  peer.on('open', () => {
+    peerOpened = true
+    connect()
   })
   peer.on('error', (error) => {
-    options.onStatus('error')
-    options.onError(
-      asError(
-        error,
-        error.type === 'peer-unavailable'
-          ? 'That transfer is no longer available.'
-          : 'The transfer service could not be reached.',
-      ),
-    )
+    if (transferErrorType(error) === 'peer-unavailable' && !finished) {
+      connection?.close()
+      retryTimer = window.setTimeout(connect, 1_800)
+      return
+    }
+    fail(error)
   })
-  timeout = window.setTimeout(() => {
-    options.onStatus('expired')
-    options.onError(new Error('The transfer timed out. Check the code and try again.'))
-    close()
-  }, 45_000)
+  peer.on('disconnected', () => fail({ type: 'disconnected' }))
+  timeout = window.setTimeout(
+    () =>
+      fail(
+        new Error(
+          'No connection after 90 seconds. Keep the source QR card open and awake, then retry. If a VPN or managed network blocks WebRTC, use another network or download the project.',
+        ),
+      ),
+    RECEIVE_TIMEOUT_MS,
+  )
 
   return close
 }

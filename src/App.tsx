@@ -106,6 +106,7 @@ const DEFAULT_PREFERENCES: Preferences = {
   perspectiveGuide: 'grid',
   inkStyle: 'solid',
   overlayOpacity: 88,
+  touchMode: 'pan',
 }
 
 const TOOL_CONFIG: Array<{
@@ -232,6 +233,8 @@ function loadPreferences(): Preferences {
         parsed.inkStyle === 'sparkle'
           ? 'sparkle'
           : DEFAULT_PREFERENCES.inkStyle,
+      touchMode:
+        parsed.touchMode === 'draw' ? 'draw' : DEFAULT_PREFERENCES.touchMode,
       overlayOpacity:
         typeof parsed.overlayOpacity === 'number'
           ? Math.min(98, Math.max(58, parsed.overlayOpacity))
@@ -504,6 +507,7 @@ function App() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (takeBoard) return
       const target = event.target as HTMLElement | null
       const isEditing =
         target?.tagName === 'INPUT' ||
@@ -572,6 +576,7 @@ function App() {
     preferences.sceneMode,
     redo,
     selectedId,
+    takeBoard,
     undo,
     updateItem,
   ])
@@ -907,6 +912,7 @@ function App() {
           <button
             className="replay-button"
             type="button"
+            aria-label="Replay board"
             disabled={board.items.length === 0}
             onClick={() => setReplay({ mode: 'replay', autoLoop: false })}
           >
@@ -916,6 +922,7 @@ function App() {
           <button
             className="take-board-button"
             type="button"
+            aria-label="Take board"
             disabled={board.items.length === 0}
             onClick={() => setTakeBoard({})}
           >
@@ -925,6 +932,7 @@ function App() {
           <button
             className="receive-device-button"
             type="button"
+            aria-label="Add from device"
             onClick={() => setDeviceTransfer({ mode: 'receive' })}
           >
             <ScanLine />
@@ -1044,6 +1052,7 @@ function App() {
               inkStyle={preferences.inkStyle}
               canvasTheme={activeTheme.canvas}
               noteColor={activeTheme.noteColor}
+              touchMode={preferences.touchMode}
               selectedId={selectedId}
               onAddItem={addItem}
               onUpdateItem={updateItem}
@@ -1164,6 +1173,7 @@ function App() {
                     setPreferences((current) => ({
                       ...current,
                       inkStyle: 'sparkle',
+                       strokeWidth: Math.max(10, current.strokeWidth),
                     }))
                   }
                 >
@@ -1423,6 +1433,44 @@ function App() {
                   <Sparkles />
                 </button>
               </div>
+            </div>
+
+            <div className="settings-section">
+              <span>Touch input</span>
+              <div className="scene-options">
+                <button
+                  type="button"
+                  className={preferences.touchMode === 'pan' ? 'is-active' : ''}
+                  onClick={() =>
+                    setPreferences((current) => ({
+                      ...current,
+                      touchMode: 'pan',
+                    }))
+                  }
+                >
+                  <Hand />
+                  <span>One finger moves canvas</span>
+                  {preferences.touchMode === 'pan' && <Check />}
+                </button>
+                <button
+                  type="button"
+                  className={preferences.touchMode === 'draw' ? 'is-active' : ''}
+                  onClick={() =>
+                    setPreferences((current) => ({
+                      ...current,
+                      touchMode: 'draw',
+                    }))
+                  }
+                >
+                  <Pencil />
+                  <span>Draw with touch</span>
+                  {preferences.touchMode === 'draw' && <Check />}
+                </button>
+              </div>
+              <p className="settings-hint">
+                Surface mode keeps fingers for moving and pinch zoom while a pen
+                draws.
+              </p>
             </div>
 
             <div className="settings-section">

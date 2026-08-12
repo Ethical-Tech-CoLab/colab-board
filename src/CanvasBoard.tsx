@@ -36,6 +36,7 @@ interface CanvasBoardProps {
   inkStyle: InkStyle
   canvasTheme: CanvasBrandTokens
   noteColor: string
+  touchMode: 'pan' | 'draw'
   selectedId: string | null
   onAddItem: (item: BoardItem, eventAt?: number) => void
   onUpdateItem: (item: BoardItem) => void
@@ -185,6 +186,7 @@ export default function CanvasBoard({
   inkStyle,
   canvasTheme,
   noteColor,
+  touchMode,
   selectedId,
   onAddItem,
   onUpdateItem,
@@ -204,7 +206,9 @@ export default function CanvasBoard({
   const [previewItem, setPreviewItem] = useState<ImageItem | null>(null)
   const [imageRevision, setImageRevision] = useState(0)
   const [spacePressed, setSpacePressed] = useState(false)
-  const pointers = useRef(new Map<number, { x: number; y: number }>())
+  const pointers = useRef(
+    new Map<number, { x: number; y: number; pointerType: string }>(),
+  )
   const drawInteraction = useRef<{
     pointerId: number
     startedAt: number
@@ -325,8 +329,11 @@ export default function CanvasBoard({
   }
 
   const beginGesture = () => {
-    if (pointers.current.size !== 2) return
-    const [first, second] = [...pointers.current.values()]
+    const touches = [...pointers.current.values()].filter(
+      (pointer) => pointer.pointerType === 'touch',
+    )
+    if (touches.length !== 2) return
+    const [first, second] = touches
     const bounds = containerRef.current?.getBoundingClientRect()
     const middleX = (first.x + second.x) / 2 - (bounds?.left ?? 0)
     const middleY = (first.y + second.y) / 2 - (bounds?.top ?? 0)
@@ -348,18 +355,29 @@ export default function CanvasBoard({
     }
   }
 
-  const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+  const handlePointerDown = (event: ReactPointerEvent<HTMLElement>) => {
     onActivity()
     event.currentTarget.setPointerCapture(event.pointerId)
-    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
-    if (pointers.current.size === 2) {
+    pointers.current.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+      pointerType: event.pointerType,
+    })
+    const touchCount = [...pointers.current.values()].filter(
+      (pointer) => pointer.pointerType === 'touch',
+    ).length
+    if (touchCount === 2) {
       beginGesture()
       return
     }
 
     const point = pointFromClient(event.clientX, event.clientY)
     const shouldPan =
-      tool === 'pan' || spacePressed || event.button === 1 || event.button === 2
+      tool === 'pan' ||
+      spacePressed ||
+      event.button === 1 ||
+      event.button === 2 ||
+      (event.pointerType === 'touch' && touchMode === 'pan')
 
     if (shouldPan) {
       panInteraction.current = {
@@ -430,13 +448,20 @@ export default function CanvasBoard({
     }
   }
 
-  const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+  const handlePointerMove = (event: ReactPointerEvent<HTMLElement>) => {
     if (!pointers.current.has(event.pointerId)) return
-    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
+    pointers.current.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+      pointerType: event.pointerType,
+    })
     onActivity()
 
     if (gesture.current && pointers.current.size >= 2) {
-      const [first, second] = [...pointers.current.values()]
+      const [first, second] = [...pointers.current.values()].filter(
+        (pointer) => pointer.pointerType === 'touch',
+      )
+      if (!first || !second) return
       const bounds = containerRef.current?.getBoundingClientRect()
       const middleX = (first.x + second.x) / 2 - (bounds?.left ?? 0)
       const middleY = (first.y + second.y) / 2 - (bounds?.top ?? 0)
@@ -504,11 +529,14 @@ export default function CanvasBoard({
     )
   }
 
-  const finishPointer = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+  const finishPointer = (event: ReactPointerEvent<HTMLElement>) => {
     pointers.current.delete(event.pointerId)
 
     if (gesture.current) {
-      if (pointers.current.size < 2) {
+      const touchCount = [...pointers.current.values()].filter(
+        (pointer) => pointer.pointerType === 'touch',
+      ).length
+      if (touchCount < 2) {
         gesture.current = null
         onCameraSettled(cameraRef.current)
       }
@@ -590,6 +618,26 @@ export default function CanvasBoard({
     <div
       ref={containerRef}
       className={`canvas-viewport ${cursor}`}
+      onPointerDownCapture={(event) => {
+        if (event.pointerType !== 'touch' || touchMode !== 'pan') return
+        handlePointerDown(event)
+        event.stopPropagation()
+      }}
+      onPointerMoveCapture={(event) => {
+        if (event.pointerType !== 'touch' || touchMode !== 'pan') return
+        handlePointerMove(event)
+        event.stopPropagation()
+      }}
+      onPointerUpCapture={(event) => {
+        if (event.pointerType !== 'touch' || touchMode !== 'pan') return
+        finishPointer(event)
+        event.stopPropagation()
+      }}
+      onPointerCancelCapture={(event) => {
+        if (event.pointerType !== 'touch' || touchMode !== 'pan') return
+        finishPointer(event)
+        event.stopPropagation()
+      }}
       onContextMenu={(event) => event.preventDefault()}
       onDragOver={(event) => {
         event.preventDefault()

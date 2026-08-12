@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Check,
+  CircleAlert,
   Copy,
   Download,
   ExternalLink,
@@ -12,6 +13,7 @@ import {
   X,
 } from 'lucide-react'
 import QRCode from 'qrcode'
+import TransferHelp from './TransferHelp'
 import {
   clearTransferIntent,
   formatTransferCode,
@@ -60,15 +62,19 @@ export default function TakeBoardDialog({
   const [qrDataUrl, setQrDataUrl] = useState('')
   const [receivedBoard, setReceivedBoard] = useState<BoardDocument | null>(null)
   const [copied, setCopied] = useState(false)
+  const [receiveAttempt, setReceiveAttempt] = useState(0)
   const cleanupRef = useRef<(() => void) | null>(null)
+  const sourceBoard = useRef(board).current
   const receiving = Boolean(receiveCode)
 
   const sourceSize = useMemo(
-    () => new Blob([JSON.stringify(receivedBoard ?? board)]).size,
-    [board, receivedBoard],
+    () => new Blob([JSON.stringify(receivedBoard ?? sourceBoard)]).size,
+    [receivedBoard, sourceBoard],
   )
 
   useEffect(() => {
+    setError('')
+    setStatus('starting')
     try {
       if (receiveCode) {
         cleanupRef.current = receiveBoardTransfer(receiveCode, {
@@ -77,7 +83,7 @@ export default function TakeBoardDialog({
           onError: (nextError) => setError(nextError.message),
         })
       } else {
-        const nextSession = startOutgoingBoardTransfer(board, {
+        const nextSession = startOutgoingBoardTransfer(sourceBoard, {
           onStatus: setStatus,
           onError: (nextError) => setError(nextError.message),
         })
@@ -93,7 +99,7 @@ export default function TakeBoardDialog({
       )
     }
     return () => cleanupRef.current?.()
-  }, [board, receiveCode])
+  }, [receiveCode, receiveAttempt, sourceBoard])
 
   useEffect(() => {
     if (!session) return
@@ -149,9 +155,12 @@ export default function TakeBoardDialog({
               </h2>
             </div>
           </div>
-          <button type="button" aria-label="Close transfer" onClick={close}>
-            <X />
-          </button>
+          <div className="transfer-header-actions">
+            <TransferHelp />
+            <button type="button" aria-label="Close transfer" onClick={close}>
+              <X />
+            </button>
+          </div>
         </header>
 
         {receiving ? (
@@ -197,6 +206,19 @@ export default function TakeBoardDialog({
                   <ExternalLink /> Open in CoLab Board
                 </button>
               </div>
+            </div>
+          ) : status === 'error' ? (
+            <div className="transfer-waiting is-error">
+              <CircleAlert />
+              <h3>Could not connect</h3>
+              <p>{error}</p>
+              <button
+                className="primary transfer-retry"
+                type="button"
+                onClick={() => setReceiveAttempt((attempt) => attempt + 1)}
+              >
+                Try again
+              </button>
             </div>
           ) : (
             <div className="transfer-waiting">
@@ -245,14 +267,16 @@ export default function TakeBoardDialog({
             <button
               className="download-fallback"
               type="button"
-              onClick={() => onDownload(board)}
+              onClick={() => onDownload(sourceBoard)}
             >
               <Download /> No camera? Download the project instead
             </button>
           </>
         )}
 
-        {error && <p className="transfer-error">{error}</p>}
+        {error && !(receiving && status === 'error') && (
+          <p className="transfer-error">{error}</p>
+        )}
       </section>
     </div>
   )

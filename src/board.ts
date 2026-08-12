@@ -58,6 +58,10 @@ export function sparkleHue(seed: number, index: number): number {
   return ((mixed >>> 0) % 360 + index * 29) % 360
 }
 
+export function sparkleTrailHue(seed: number, distance: number): number {
+  return (sparkleHue(seed, 0) + Math.max(0, distance) * 0.72) % 360
+}
+
 export function sparkleOffset(seed: number, index: number): number {
   const mixed = Math.imul(seed + index * 1_013, 1_664_525) + 1_013_904_223
   return ((mixed >>> 0) / 0xffffffff - 0.5) * 2
