@@ -17,13 +17,34 @@ export type TransferStatus =
   | 'expired'
   | 'error'
 
-export interface BoardTransferEnvelope {
+interface TransferEnvelopeBase {
   protocol: typeof TRANSFER_PROTOCOL
-  kind: 'board'
   createdAt: number
   expiresAt: number
+}
+
+export interface BoardTransferEnvelope extends TransferEnvelopeBase {
+  kind: 'board'
   board: BoardDocument
 }
+
+export interface TransferImage {
+  name: string
+  type: string
+  src: string
+  width: number
+  height: number
+}
+
+export interface ImageTransferEnvelope extends TransferEnvelopeBase {
+  kind: 'image'
+  image: TransferImage
+}
+
+export type TransferEnvelope = BoardTransferEnvelope | ImageTransferEnvelope
+export type TransferContent =
+  | { kind: 'board'; board: BoardDocument }
+  | { kind: 'image'; image: TransferImage }
 
 export interface TransferSession {
   code: string
@@ -33,13 +54,14 @@ export interface TransferSession {
 
 interface OutgoingOptions {
   code?: string
+  intent?: 'take' | 'send'
   onStatus: (status: TransferStatus) => void
   onError: (error: Error) => void
 }
 
 interface IncomingOptions {
   onStatus: (status: TransferStatus) => void
-  onBoard: (board: BoardDocument) => void
+  onContent: (content: TransferContent) => void
   onError: (error: Error) => void
 }
 
@@ -60,28 +82,56 @@ function connectionError(
   })
 }
 
-function parseEnvelope(value: unknown): BoardTransferEnvelope {
+function isTransferImage(value: unknown): value is TransferImage {
+  if (!value || typeof value !== 'object') return false
+  const candidate = value as Partial<TransferImage>
+  return (
+    typeof candidate.name === 'string' &&
+    typeof candidate.type === 'string' &&
+    typeof candidate.src === 'string' &&
+    candidate.src.startsWith('data:image/') &&
+    typeof candidate.width === 'number' &&
+    typeof candidate.height === 'number'
+  )
+}
+
+function parseEnvelope(value: unknown): TransferEnvelope {
   if (
     !value ||
     typeof value !== 'object' ||
     !('protocol' in value) ||
     value.protocol !== TRANSFER_PROTOCOL ||
-    !('kind' in value) ||
-    value.kind !== 'board' ||
+    !('createdAt' in value) ||
+    typeof value.createdAt !== 'number' ||
     !('expiresAt' in value) ||
     typeof value.expiresAt !== 'number' ||
-    !('board' in value) ||
-    !isBoardDocument(value.board)
+    value.expiresAt <= value.createdAt
   ) {
-    throw new Error('The transfer did not contain a valid CoLab Board.')
+    throw new Error('The transfer did not contain valid CoLab content.')
   }
   if (Date.now() > value.expiresAt) {
     throw new Error('This transfer has expired.')
   }
-  return value as BoardTransferEnvelope
+  if (
+    'kind' in value &&
+    value.kind === 'board' &&
+    'board' in value &&
+    isBoardDocument(value.board)
+  ) {
+    return value as BoardTransferEnvelope
+  }
+  if (
+    'kind' in value &&
+    value.kind === 'image' &&
+    'image' in value &&
+    isTransferImage(value.image)
+  ) {
+    return value as ImageTransferEnvelope
+  }
+  throw new Error('The transfer content is malformed or unsupported.')
 }
 
-async function decodeEnvelope(data: unknown): Promise<BoardTransferEnvelope> {
+async function decodeEnvelope(data: unknown): Promise<TransferEnvelope> {
   let text: string
   if (typeof data === 'string') {
     text = data
@@ -162,12 +212,25 @@ export function createBoardTransferEnvelope(
   }
 }
 
+export function createImageTransferEnvelope(
+  image: TransferImage,
+  now = Date.now(),
+): ImageTransferEnvelope {
+  return {
+    protocol: TRANSFER_PROTOCOL,
+    kind: 'image',
+    createdAt: now,
+    expiresAt: now + TRANSFER_TTL_MS,
+    image,
+  }
+}
+
 export function supportsPeerTransfer(): boolean {
   return util.supports.data
 }
 
-export function startOutgoingBoardTransfer(
-  board: BoardDocument,
+export function startOutgoingTransfer(
+  content: TransferContent,
   options: OutgoingOptions,
 ): TransferSession {
   if (!supportsPeerTransfer()) {
@@ -202,7 +265,10 @@ export function startOutgoingBoardTransfer(
     connectionError(connection, options.onError)
     connection.on('open', () => {
       options.onStatus('sending')
-      const envelope = createBoardTransferEnvelope(board)
+      const envelope =
+        content.kind === 'board'
+          ? createBoardTransferEnvelope(content.board)
+          : createImageTransferEnvelope(content.image)
       connection.send(
         new Blob([JSON.stringify(envelope)], { type: 'application/json' }),
       )
@@ -226,12 +292,19 @@ export function startOutgoingBoardTransfer(
 
   return {
     code,
-    link: createTransferLink(code),
+    link: createTransferLink(code, options.intent ?? 'take'),
     close,
   }
 }
 
-export function receiveBoardTransfer(
+export function startOutgoingBoardTransfer(
+  board: BoardDocument,
+  options: OutgoingOptions,
+): TransferSession {
+  return startOutgoingTransfer({ kind: 'board', board }, options)
+}
+
+export function receiveTransfer(
   code: string,
   options: IncomingOptions,
 ): () => void {
@@ -263,7 +336,11 @@ export function receiveBoardTransfer(
     connection.on('data', (data) => {
       decodeEnvelope(data)
         .then((envelope) => {
-          options.onBoard(envelope.board)
+          options.onContent(
+            envelope.kind === 'board'
+              ? { kind: 'board', board: envelope.board }
+              : { kind: 'image', image: envelope.image },
+          )
           options.onStatus('received')
           connection?.send('received')
         })
@@ -293,13 +370,57 @@ export function receiveBoardTransfer(
   return close
 }
 
+export function receiveBoardTransfer(
+  code: string,
+  options: Omit<IncomingOptions, 'onContent'> & {
+    onBoard: (board: BoardDocument) => void
+  },
+): () => void {
+  return receiveTransfer(code, {
+    ...options,
+    onContent: (content) => {
+      if (content.kind !== 'board') {
+        options.onError(
+          new Error('This QR code contains an image, not a complete board.'),
+        )
+        return
+      }
+      options.onBoard(content.board)
+    },
+  })
+}
+
 export function validateBoardTransferEnvelope(
   value: unknown,
 ): value is BoardTransferEnvelope {
+  try {
+    return parseEnvelope(value).kind === 'board'
+  } catch {
+    return false
+  }
+}
+
+export function validateTransferEnvelope(
+  value: unknown,
+): value is TransferEnvelope {
   try {
     parseEnvelope(value)
     return true
   } catch {
     return false
+  }
+}
+
+export function transferCodeFromValue(value: string): string | null {
+  if (isValidTransferCode(value)) return normalizeTransferCode(value)
+  try {
+    const url = new URL(value)
+    const parameters = new URLSearchParams(url.hash.slice(1))
+    const code = parameters.get('send') ?? parameters.get('take')
+    return code && isValidTransferCode(code)
+      ? normalizeTransferCode(code)
+      : null
+  } catch {
+    return null
   }
 }

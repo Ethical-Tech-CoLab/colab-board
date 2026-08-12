@@ -30,6 +30,8 @@ import {
   Redo2,
   RotateCcw,
   Save,
+  ScanLine,
+  Send,
   Settings2,
   Sparkles,
   StickyNote,
@@ -40,6 +42,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import CanvasBoard from './CanvasBoard'
+import DeviceTransferDialog from './DeviceTransferDialog'
 import ReplayOverlay from './ReplayOverlay'
 import TakeBoardDialog from './TakeBoardDialog'
 import { BRAND_THEMES, applyBrandTheme } from './branding'
@@ -50,10 +53,15 @@ import {
   createId,
   fitImage,
   getItemBounds,
+  placeItemsAtCenter,
   isBoardDocument,
 } from './board'
 import { loadBoard, saveBoard } from './persistence'
-import { getTransferIntent } from './transfer'
+import {
+  clearTransferIntent,
+  getTransferIntent,
+  type TransferContent,
+} from './transfer'
 import type {
   BoardDocument,
   BoardItem,
@@ -192,6 +200,15 @@ function App() {
     const transfer = getTransferIntent()
     return transfer?.intent === 'take'
       ? { receiveCode: transfer.code }
+      : null
+  })
+  const [deviceTransfer, setDeviceTransfer] = useState<{
+    mode: 'send' | 'receive'
+    code?: string
+  } | null>(() => {
+    const transfer = getTransferIntent()
+    return transfer?.intent === 'send'
+      ? { mode: 'receive', code: transfer.code }
       : null
   })
   const [toasts, setToasts] = useState<Toast[]>([])
@@ -591,6 +608,68 @@ function App() {
     }))
   }
 
+  const acceptTransferredContent = useCallback(
+    (content: TransferContent) => {
+      if (content.kind === 'image') {
+        addItem(
+          fitImage(
+            content.image.src,
+            content.image.name,
+            content.image.width,
+            content.image.height,
+            viewCenter,
+          ),
+        )
+        setTool('select')
+        setDeviceTransfer(null)
+        clearTransferIntent()
+        notify('Image added from the personal device.', 'success')
+        return
+      }
+
+      if (content.board.items.length === 0) {
+        notify('The transferred board has no objects to add.', 'error')
+        return
+      }
+      const now = Date.now()
+      const importedItems = placeItemsAtCenter(
+        content.board.items,
+        viewCenter,
+        now,
+      )
+
+      setBoard((current) => {
+        past.current = [...past.current.slice(-79), current]
+        future.current = []
+        return {
+          ...current,
+          updatedAt: now,
+          items: [...current.items, ...importedItems],
+          timeline: [
+            ...current.timeline,
+            ...importedItems.map(
+              (item, index): TimelineEvent => ({
+                id: createId('event'),
+                type: 'add',
+                at: now + index,
+                item,
+              }),
+            ),
+          ],
+        }
+      })
+      setSelectedId(importedItems.at(-1)?.id ?? null)
+      setTool('select')
+      setDeviceTransfer(null)
+      clearTransferIntent()
+      notify(
+        `${importedItems.length} objects added from ${content.board.title}.`,
+        'success',
+      )
+    },
+    [addItem, notify, viewCenter],
+  )
+
   const saveLabel =
     saveState === 'loading'
       ? 'Opening local board'
@@ -677,6 +756,14 @@ function App() {
             <QrCode />
             <span>Take board</span>
           </button>
+          <button
+            className="receive-device-button"
+            type="button"
+            onClick={() => setDeviceTransfer({ mode: 'receive' })}
+          >
+            <ScanLine />
+            <span>Add from device</span>
+          </button>
           <div className="menu-anchor">
             <button
               type="button"
@@ -699,6 +786,15 @@ function App() {
                   onClick={() => importInput.current?.click()}
                 >
                   <FolderOpen /> Import project
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeviceTransfer({ mode: 'send' })
+                    setMenuOpen(false)
+                  }}
+                >
+                  <Send /> Send to a board
                 </button>
                 <hr />
                 <button
@@ -1184,6 +1280,17 @@ function App() {
             setTakeBoard(null)
             notify('Transferred board opened on this device.', 'success')
           }}
+        />
+      )}
+      {deviceTransfer && (
+        <DeviceTransferDialog
+          mode={deviceTransfer.mode}
+          initialCode={deviceTransfer.code}
+          onClose={() => {
+            if (deviceTransfer.code) clearTransferIntent()
+            setDeviceTransfer(null)
+          }}
+          onAccept={acceptTransferredContent}
         />
       )}
     </div>

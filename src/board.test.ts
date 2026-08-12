@@ -6,6 +6,7 @@ import {
   getReplayDuration,
   getReplayTimelineSinceLastClear,
   isBoardDocument,
+  placeItemsAtCenter,
   replayAt,
 } from './board'
 import { BRAND_THEMES } from './branding'
@@ -118,6 +119,18 @@ describe('board document events', () => {
     expect(start.scale).toBeCloseTo(camera.scale)
     expect(later).not.toEqual(start)
     expect(camera).toEqual({ x: 42, y: -18, scale: 1.4 })
+  })
+
+  it('places transferred objects around a target with fresh identities', () => {
+    const placed = placeItemsAtCenter([note, stroke], { x: 500, y: 400 }, 5_000)
+
+    expect(placed).toHaveLength(2)
+    expect(placed[0].id).not.toBe(note.id)
+    expect(placed[1].id).not.toBe(stroke.id)
+    expect(placed.map((item) => item.createdAt)).toEqual([5_000, 5_001])
+    expect(placed[0]).not.toEqual(note)
+    expect(note.x).toBe(20)
+    expect(stroke.points[0]).toEqual({ x: 0, y: 0, pressure: 0.5, t: 0 })
   })
 })
 

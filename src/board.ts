@@ -148,6 +148,7 @@ export function getItemBounds(item: BoardItem): {
       width: item.width,
       height: item.height,
     }
+
   }
 
   if (item.points.length === 0) {
@@ -164,6 +165,48 @@ export function getItemBounds(item: BoardItem): {
     width: Math.max(...xs) - minX + padding,
     height: Math.max(...ys) - minY + padding,
   }
+}
+
+export function placeItemsAtCenter(
+  items: BoardItem[],
+  center: { x: number; y: number },
+  now = Date.now(),
+): BoardItem[] {
+  if (items.length === 0) return []
+  const bounds = items.map(getItemBounds)
+  const left = Math.min(...bounds.map((itemBounds) => itemBounds.x))
+  const top = Math.min(...bounds.map((itemBounds) => itemBounds.y))
+  const right = Math.max(
+    ...bounds.map((itemBounds) => itemBounds.x + itemBounds.width),
+  )
+  const bottom = Math.max(
+    ...bounds.map((itemBounds) => itemBounds.y + itemBounds.height),
+  )
+  const offsetX = center.x - (left + right) / 2
+  const offsetY = center.y - (top + bottom) / 2
+
+  return items.map((item, index) => {
+    const base = {
+      ...item,
+      id: createId(item.type),
+      createdAt: now + index,
+    }
+    if (base.type === 'stroke') {
+      return {
+        ...base,
+        points: base.points.map((point) => ({
+          ...point,
+          x: point.x + offsetX,
+          y: point.y + offsetY,
+        })),
+      }
+    }
+    return {
+      ...base,
+      x: base.x + offsetX,
+      y: base.y + offsetY,
+    }
+  })
 }
 
 export function hitTest(

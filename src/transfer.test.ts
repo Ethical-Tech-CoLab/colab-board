@@ -3,11 +3,14 @@ import { createBoard } from './board'
 import {
   TRANSFER_PROTOCOL,
   createBoardTransferEnvelope,
+  createImageTransferEnvelope,
   formatTransferCode,
   generateTransferCode,
   isValidTransferCode,
   normalizeTransferCode,
+  transferCodeFromValue,
   validateBoardTransferEnvelope,
+  validateTransferEnvelope,
 } from './transfer'
 
 describe('transfer codes', () => {
@@ -23,6 +26,38 @@ describe('transfer codes', () => {
   it('rejects incomplete or ambiguous codes', () => {
     expect(isValidTransferCode('ABC')).toBe(false)
     expect(isValidTransferCode('0000 1111')).toBe(false)
+  })
+
+  it('extracts codes from manual entry and transfer QR links', () => {
+    expect(transferCodeFromValue('ABCD EFGH')).toBe('ABCDEFGH')
+    expect(
+      transferCodeFromValue('https://example.org/board/#send=ABCD2345'),
+    ).toBe('ABCD2345')
+    expect(transferCodeFromValue('https://example.org/#send=invalid')).toBeNull()
+  })
+})
+
+describe('image transfer envelope', () => {
+  it('wraps and validates image content in the shared protocol', () => {
+    const image = {
+      name: 'idea.png',
+      type: 'image/png',
+      src: 'data:image/png;base64,aGVsbG8=',
+      width: 640,
+      height: 480,
+    }
+    const envelope = createImageTransferEnvelope(image)
+
+    expect(envelope.kind).toBe('image')
+    expect(envelope.image).toEqual(image)
+    expect(validateTransferEnvelope(envelope)).toBe(true)
+    expect(validateBoardTransferEnvelope(envelope)).toBe(false)
+    expect(
+      validateTransferEnvelope({
+        ...envelope,
+        image: { ...image, src: 'https://example.org/image.png' },
+      }),
+    ).toBe(false)
   })
 })
 

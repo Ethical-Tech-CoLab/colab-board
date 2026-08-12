@@ -171,6 +171,12 @@
   background: var(--brand-secondary);
 }
 
+.header-actions .receive-device-button {
+  color: var(--brand-accent);
+  border-color: var(--brand-border-strong);
+  background: var(--brand-control);
+}
+
 .header-actions .replay-button:hover {
   background: #245f4d;
 }
@@ -1227,6 +1233,386 @@ kbd {
   background: color-mix(in srgb, var(--brand-danger) 8%, transparent);
 }
 
+.device-transfer-dialog {
+  width: min(680px, 100%);
+}
+
+.transfer-file-drop {
+  width: 100%;
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 21px;
+  color: var(--brand-foreground);
+  border: 1px dashed var(--brand-border-strong);
+  border-radius: 16px;
+  background:
+    radial-gradient(
+      circle at center,
+      color-mix(in srgb, var(--brand-glow) 18%, transparent),
+      transparent 60%
+    ),
+    var(--brand-control);
+  cursor: pointer;
+}
+
+.transfer-file-drop:hover {
+  border-color: var(--brand-accent);
+}
+
+.transfer-file-drop > span {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 5px;
+  color: var(--brand-accent);
+  border-radius: 14px;
+  background: var(--brand-secondary);
+}
+
+.transfer-file-drop svg {
+  width: 24px;
+}
+
+.transfer-file-drop strong {
+  font-family: var(--brand-font-display);
+  font-size: 23px;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.transfer-file-drop small {
+  color: var(--brand-muted);
+  font-size: 9px;
+}
+
+.outgoing-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 10px 11px;
+  border: 1px solid var(--brand-border);
+  border-radius: 10px;
+  background: var(--brand-control);
+}
+
+.outgoing-content > svg {
+  width: 20px;
+  color: var(--brand-accent);
+}
+
+.outgoing-content > span {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.outgoing-content small {
+  color: var(--brand-muted);
+  font-size: 7px;
+  letter-spacing: 1px;
+}
+
+.outgoing-content strong {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.outgoing-content button {
+  padding: 6px 9px;
+  color: var(--brand-muted);
+  font-size: 9px;
+  border: 1px solid var(--brand-border);
+  border-radius: 7px;
+  background: var(--brand-panel);
+  cursor: pointer;
+}
+
+.device-share-grid {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.8fr) 1.2fr;
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.qr-stage.compact {
+  min-height: 245px;
+  padding: 12px;
+}
+
+.qr-stage.compact img {
+  width: min(220px, 100%);
+}
+
+.device-share-instructions {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 12px 8px;
+}
+
+.device-share-instructions > span:first-child {
+  color: var(--brand-accent);
+  font-size: 8px;
+  letter-spacing: 1.2px;
+}
+
+.device-share-instructions ol {
+  margin: 10px 0 16px;
+  padding-left: 21px;
+  color: var(--brand-muted);
+  font-size: 10px;
+  line-height: 1.8;
+}
+
+.device-share-instructions ol strong {
+  color: var(--brand-foreground);
+}
+
+.large-transfer-code {
+  color: var(--brand-accent);
+  font-size: clamp(21px, 3vw, 31px);
+  letter-spacing: 5px;
+}
+
+.device-transfer-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  color: var(--brand-muted);
+  font-size: 9px;
+}
+
+.device-transfer-status svg {
+  width: 13px;
+}
+
+.device-transfer-status.is-ready,
+.device-transfer-status.is-complete {
+  color: var(--brand-accent);
+}
+
+.code-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 21px;
+}
+
+.code-entry > span {
+  color: var(--brand-muted);
+  font-size: 8px;
+  letter-spacing: 1.2px;
+}
+
+.code-entry input {
+  width: 100%;
+  height: 66px;
+  padding: 0 15px;
+  color: var(--brand-accent);
+  font-size: clamp(24px, 5vw, 36px);
+  font-weight: 700;
+  letter-spacing: 8px;
+  text-align: center;
+  text-transform: uppercase;
+  border: 1px solid var(--brand-border-strong);
+  border-radius: 12px;
+  background: var(--brand-background);
+}
+
+.code-entry input::placeholder {
+  color: color-mix(in srgb, var(--brand-muted) 45%, transparent);
+}
+
+.receive-methods {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 9px;
+  margin-top: 13px;
+}
+
+.receive-methods > span {
+  color: var(--brand-muted);
+  font-size: 9px;
+}
+
+.receive-methods button,
+.camera-scanner > button {
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: var(--brand-secondary-ink);
+  font-size: 10px;
+  border: 1px solid var(--brand-border-strong);
+  border-radius: 9px;
+  background: var(--brand-secondary);
+  cursor: pointer;
+}
+
+.receive-methods button.primary {
+  color: var(--brand-accent-ink);
+  border-color: var(--brand-accent);
+  background: var(--brand-accent);
+}
+
+.receive-methods svg,
+.camera-scanner > button svg {
+  width: 16px;
+}
+
+.connecting-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 15px;
+  color: var(--brand-accent);
+  font-size: 10px;
+}
+
+.connecting-state svg {
+  width: 17px;
+}
+
+.camera-scanner {
+  position: relative;
+  min-height: 410px;
+  margin-top: 19px;
+  border: 1px solid var(--brand-border);
+  border-radius: 15px;
+  background: #050308;
+  overflow: hidden;
+}
+
+.camera-scanner video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.camera-frame {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(245px, 64%);
+  aspect-ratio: 1;
+  border: 2px solid var(--brand-accent);
+  border-radius: 18px;
+  box-shadow:
+    0 0 0 999px rgba(5, 3, 8, 0.45),
+    0 0 25px color-mix(in srgb, var(--brand-accent) 35%, transparent);
+  transform: translate(-50%, -58%);
+}
+
+.camera-copy {
+  position: absolute;
+  right: 15px;
+  bottom: 61px;
+  left: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: white;
+  text-align: center;
+  text-shadow: 0 2px 10px black;
+}
+
+.camera-copy svg {
+  width: 18px;
+  margin-bottom: 3px;
+  color: var(--brand-accent);
+}
+
+.camera-copy strong {
+  font-size: 10px;
+}
+
+.camera-copy span {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 8px;
+}
+
+.camera-scanner > button {
+  position: absolute;
+  right: 12px;
+  bottom: 11px;
+  left: 12px;
+}
+
+.camera-scanner .transfer-error {
+  position: absolute;
+  right: 12px;
+  bottom: 60px;
+  left: 12px;
+  color: white;
+  background: color-mix(in srgb, var(--brand-danger) 78%, transparent);
+}
+
+.incoming-preview {
+  margin-top: 22px;
+  text-align: center;
+}
+
+.incoming-visual {
+  height: 220px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 16px;
+  border: 1px solid var(--brand-border);
+  border-radius: 15px;
+  background:
+    radial-gradient(
+      circle at center,
+      color-mix(in srgb, var(--brand-glow) 20%, transparent),
+      transparent 65%
+    ),
+    var(--brand-background);
+  overflow: hidden;
+}
+
+.incoming-visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.incoming-visual > svg {
+  width: 64px;
+  height: 64px;
+  color: var(--brand-accent);
+}
+
+.incoming-preview h3 {
+  margin: 5px 0 7px;
+  font-family: var(--brand-font-display);
+  font-size: 30px;
+  font-weight: 400;
+  text-transform: uppercase;
+}
+
+.incoming-preview > p {
+  max-width: 480px;
+  margin: 0 auto 16px;
+  color: var(--brand-muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
 .help-dialog {
   width: min(580px, 100%);
   padding: 26px;
@@ -1578,13 +1964,15 @@ kbd {
   .save-state,
   .header-actions .add-media-button span,
   .header-actions .replay-button span,
-  .header-actions .take-board-button span {
+  .header-actions .take-board-button span,
+  .header-actions .receive-device-button span {
     display: none;
   }
 
   .header-actions .add-media-button,
   .header-actions .replay-button,
-  .header-actions .take-board-button {
+  .header-actions .take-board-button,
+  .header-actions .receive-device-button {
     min-width: 38px;
     padding: 0;
   }
@@ -1707,6 +2095,22 @@ kbd {
 
   .replay-controls {
     bottom: 14px;
+  }
+
+  .device-share-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .device-share-instructions {
+    padding: 3px;
+  }
+
+  .receive-methods {
+    grid-template-columns: 1fr;
+  }
+
+  .receive-methods > span {
+    text-align: center;
   }
 }
 
