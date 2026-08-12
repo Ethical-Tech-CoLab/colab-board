@@ -165,6 +165,12 @@
   box-shadow: 0 3px 9px rgba(26, 81, 62, 0.18);
 }
 
+.header-actions .take-board-button {
+  color: var(--brand-secondary-ink);
+  border-color: var(--brand-border-strong);
+  background: var(--brand-secondary);
+}
+
 .header-actions .replay-button:hover {
   background: #245f4d;
 }
@@ -844,6 +850,383 @@ kbd {
   backdrop-filter: blur(8px);
 }
 
+.transfer-dialog {
+  width: min(560px, 100%);
+  max-height: calc(100dvh - 32px);
+  padding: 25px;
+  color: var(--brand-foreground);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-large);
+  background:
+    radial-gradient(
+      circle at 86% 0,
+      color-mix(in srgb, var(--brand-glow) 25%, transparent),
+      transparent 37%
+    ),
+    var(--brand-panel);
+  box-shadow: 0 28px 100px var(--brand-shadow-color);
+  overflow-y: auto;
+}
+
+.transfer-dialog > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.transfer-heading {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.transfer-heading h2 {
+  margin: 3px 0 0;
+  font-family: var(--brand-font-display);
+  font-size: 29px;
+  font-weight: 400;
+  letter-spacing: 0.025em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.transfer-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  flex: 0 0 46px;
+  place-items: center;
+  color: var(--brand-accent);
+  border: 1px solid var(--brand-border-strong);
+  border-radius: 12px;
+  background: var(--brand-secondary);
+}
+
+.transfer-icon svg {
+  width: 22px;
+}
+
+.transfer-dialog > header > button {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  flex: 0 0 36px;
+  place-items: center;
+  padding: 0;
+  color: var(--brand-muted);
+  border: 0;
+  border-radius: 9px;
+  background: var(--brand-control);
+  cursor: pointer;
+}
+
+.transfer-dialog > header > button svg {
+  width: 18px;
+}
+
+.transfer-intro {
+  max-width: 470px;
+  margin: 18px 0 16px;
+  color: var(--brand-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.qr-stage {
+  position: relative;
+  min-height: 280px;
+  display: grid;
+  place-items: center;
+  padding: 16px 16px 42px;
+  border: 1px solid var(--brand-border);
+  border-radius: 16px;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--brand-glow) 15%, transparent),
+      transparent 48%
+    ),
+    var(--brand-background);
+  overflow: hidden;
+}
+
+.qr-stage > img {
+  width: min(270px, 72vw);
+  height: auto;
+  display: block;
+  border-radius: 10px;
+  box-shadow: 0 15px 48px rgba(0, 0, 0, 0.32);
+}
+
+.qr-stage > svg {
+  width: 38px;
+  color: var(--brand-accent);
+}
+
+.transfer-status {
+  position: absolute;
+  bottom: 11px;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  color: var(--brand-muted);
+  font-size: 10px;
+  border: 1px solid var(--brand-border);
+  border-radius: 20px;
+  background: var(--brand-panel-glass);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.transfer-status.is-ready,
+.transfer-status.is-complete {
+  color: var(--brand-accent);
+}
+
+.transfer-status svg {
+  width: 13px;
+}
+
+.transfer-code {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 3px 12px;
+  margin-top: 13px;
+  padding: 11px 12px;
+  border: 1px solid var(--brand-border);
+  border-radius: 11px;
+  background: var(--brand-control);
+}
+
+.transfer-code > span {
+  color: var(--brand-muted);
+  font-size: 8px;
+  letter-spacing: 1.3px;
+}
+
+.transfer-code > strong {
+  grid-column: 1;
+  color: var(--brand-accent);
+  font-size: 18px;
+  letter-spacing: 4px;
+}
+
+.transfer-code > button {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  color: var(--brand-foreground);
+  font-size: 10px;
+  border: 1px solid var(--brand-border);
+  border-radius: 8px;
+  background: var(--brand-panel);
+  cursor: pointer;
+}
+
+.transfer-code svg,
+.transfer-trust svg,
+.download-fallback svg,
+.transfer-actions svg {
+  width: 16px;
+}
+
+.transfer-trust {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 13px;
+  padding: 10px 11px;
+  color: var(--brand-muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.transfer-trust > svg {
+  flex: 0 0 17px;
+  color: var(--brand-accent);
+}
+
+.transfer-trust span {
+  display: flex;
+  flex-direction: column;
+}
+
+.transfer-trust strong {
+  color: var(--brand-foreground);
+  font-size: 10px;
+}
+
+.download-fallback {
+  width: 100%;
+  height: 39px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--brand-muted);
+  font-size: 10px;
+  border: 1px solid var(--brand-border);
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.download-fallback:hover {
+  color: var(--brand-foreground);
+  background: var(--brand-control);
+}
+
+.transfer-waiting {
+  min-height: 330px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.transfer-waiting > svg {
+  width: 45px;
+  height: 45px;
+  color: var(--brand-accent);
+}
+
+.transfer-waiting h3 {
+  margin: 18px 0 7px;
+  font-family: var(--brand-font-display);
+  font-size: 26px;
+  font-weight: 400;
+  text-transform: uppercase;
+}
+
+.transfer-waiting p,
+.received-board > p {
+  max-width: 390px;
+  margin: 0;
+  color: var(--brand-muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.is-spinning {
+  animation: transfer-spin 1s linear infinite;
+}
+
+@keyframes transfer-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.received-board {
+  margin-top: 20px;
+}
+
+.received-preview {
+  padding: 25px;
+  text-align: center;
+  border: 1px solid var(--brand-border-strong);
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--brand-secondary) 58%, transparent);
+}
+
+.received-mark {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 10px;
+  color: var(--brand-accent-ink);
+  border-radius: 50%;
+  background: var(--brand-accent);
+}
+
+.received-preview > span {
+  color: var(--brand-accent);
+  font-size: 8px;
+  letter-spacing: 1.4px;
+}
+
+.received-preview h3 {
+  margin: 8px 0 19px;
+  font-family: var(--brand-font-display);
+  font-size: 30px;
+  font-weight: 400;
+  text-transform: uppercase;
+}
+
+.received-preview dl {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 0;
+}
+
+.received-preview dl div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.received-preview dt {
+  color: var(--brand-muted);
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
+.received-preview dd {
+  margin: 0;
+  color: var(--brand-foreground);
+  font-size: 13px;
+}
+
+.received-board > p {
+  margin: 15px 2px;
+}
+
+.transfer-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.transfer-actions button {
+  height: 42px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: var(--brand-secondary-ink);
+  border: 1px solid var(--brand-border-strong);
+  border-radius: 10px;
+  background: var(--brand-secondary);
+  cursor: pointer;
+}
+
+.transfer-actions button.primary {
+  color: var(--brand-accent-ink);
+  border-color: var(--brand-accent);
+  background: var(--brand-accent);
+}
+
+.transfer-error {
+  margin: 13px 0 0;
+  padding: 9px 11px;
+  color: var(--brand-danger);
+  font-size: 10px;
+  border: 1px solid color-mix(in srgb, var(--brand-danger) 40%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--brand-danger) 8%, transparent);
+}
+
 .help-dialog {
   width: min(580px, 100%);
   padding: 26px;
@@ -1194,12 +1577,14 @@ kbd {
   .brand-copy,
   .save-state,
   .header-actions .add-media-button span,
-  .header-actions .replay-button span {
+  .header-actions .replay-button span,
+  .header-actions .take-board-button span {
     display: none;
   }
 
   .header-actions .add-media-button,
-  .header-actions .replay-button {
+  .header-actions .replay-button,
+  .header-actions .take-board-button {
     min-width: 38px;
     padding: 0;
   }

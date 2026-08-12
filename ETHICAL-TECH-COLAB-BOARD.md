@@ -107,10 +107,10 @@ Proposed flow:
 
 1. User selects **Take this board with you**.
 2. Board creates the existing portable `.colab.json` project archive.
-3. Board encrypts the archive locally and uploads only the ciphertext to a
-   short-lived transfer relay.
-4. A QR code contains a short download URL and a decryption key in the URL
-   fragment.
+3. Board opens a short-lived WebRTC session. The public signaling service sees
+   only an ephemeral peer identifier; board content travels directly between
+   devices over a DTLS-encrypted data channel.
+4. A QR code contains the CoLab Board URL and one-use transfer code.
 5. The participant scans the QR code, previews the board metadata, and chooses
    **Save project** or **Open in CoLab Board**.
 6. The transfer expires after its first successful download or a short
@@ -119,7 +119,7 @@ Proposed flow:
 Requirements:
 
 - No account required.
-- Relay cannot read board contents.
+- Signaling service never receives board contents.
 - User explicitly initiates every upload.
 - QR view clearly shows expiration and transfer status.
 - Include a direct share/download option for devices without a camera.
@@ -171,11 +171,11 @@ Acceptance criteria:
   existing work.
 - Rejected, expired, and malformed transfers leave the board unchanged.
 
-## Transfer Architecture Decision
+## Transfer Architecture Decision — Implemented in v0.3.0
 
-The current GitHub Pages application has no server and cannot expose one
-device's IndexedDB content to another device through a URL alone. Before P0
-implementation, select a minimal short-lived relay for encrypted blobs and
-pairing metadata. The relay must store ciphertext only, enforce strict size and
-time limits, and support automatic deletion. GitHub Pages remains the
-application host.
+The GitHub Pages application uses WebRTC data channels for encrypted,
+peer-to-peer board transfer. PeerJS provides ephemeral connection signaling;
+it does not receive or store the board payload. Sessions use random
+eight-character codes, allow one completed delivery, and expire after ten
+minutes. GitHub Pages remains the application host and direct project download
+remains the offline fallback.

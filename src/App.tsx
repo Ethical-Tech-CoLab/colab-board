@@ -26,6 +26,7 @@ import {
   Pencil,
   Play,
   Plus,
+  QrCode,
   Redo2,
   RotateCcw,
   Save,
@@ -40,6 +41,7 @@ import {
 } from 'lucide-react'
 import CanvasBoard from './CanvasBoard'
 import ReplayOverlay from './ReplayOverlay'
+import TakeBoardDialog from './TakeBoardDialog'
 import { BRAND_THEMES, applyBrandTheme } from './branding'
 import {
   DEFAULT_CAMERA,
@@ -51,6 +53,7 @@ import {
   isBoardDocument,
 } from './board'
 import { loadBoard, saveBoard } from './persistence'
+import { getTransferIntent } from './transfer'
 import type {
   BoardDocument,
   BoardItem,
@@ -115,6 +118,13 @@ function safeFileName(title: string) {
   )
 }
 
+function downloadBoardProject(board: BoardDocument) {
+  const blob = new Blob([JSON.stringify(board, null, 2)], {
+    type: 'application/json',
+  })
+  downloadBlob(blob, `${safeFileName(board.title)}.colab.json`)
+}
+
 function fileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -176,6 +186,14 @@ function App() {
   const [helpOpen, setHelpOpen] = useState(false)
   const [welcomeDismissed, setWelcomeDismissed] = useState(false)
   const [replay, setReplay] = useState<ReplayState | null>(null)
+  const [takeBoard, setTakeBoard] = useState<{
+    receiveCode?: string
+  } | null>(() => {
+    const transfer = getTransferIntent()
+    return transfer?.intent === 'take'
+      ? { receiveCode: transfer.code }
+      : null
+  })
   const [toasts, setToasts] = useState<Toast[]>([])
   const past = useRef<BoardDocument[]>([])
   const future = useRef<BoardDocument[]>([])
@@ -456,10 +474,7 @@ function App() {
   )
 
   const exportProject = () => {
-    const blob = new Blob([JSON.stringify(board, null, 2)], {
-      type: 'application/json',
-    })
-    downloadBlob(blob, `${safeFileName(board.title)}.colab.json`)
+    downloadBoardProject(board)
     notify('Project file exported.', 'success')
     setMenuOpen(false)
   }
@@ -652,6 +667,15 @@ function App() {
           >
             <Play />
             <span>Replay</span>
+          </button>
+          <button
+            className="take-board-button"
+            type="button"
+            disabled={board.items.length === 0}
+            onClick={() => setTakeBoard({})}
+          >
+            <QrCode />
+            <span>Take board</span>
           </button>
           <div className="menu-anchor">
             <button
@@ -1139,6 +1163,27 @@ function App() {
           autoLoop={replay.autoLoop}
           theme={activeTheme}
           onClose={() => setReplay(null)}
+        />
+      )}
+      {takeBoard && (
+        <TakeBoardDialog
+          board={board}
+          receiveCode={takeBoard.receiveCode}
+          onClose={() => setTakeBoard(null)}
+          onDownload={(receivedBoard) => {
+            downloadBoardProject(receivedBoard)
+            notify('Project file saved.', 'success')
+          }}
+          onOpen={(receivedBoard) => {
+            past.current = [board]
+            future.current = []
+            setBoard({ ...receivedBoard, updatedAt: Date.now() })
+            setCamera(DEFAULT_CAMERA)
+            setSelectedId(null)
+            setWelcomeDismissed(true)
+            setTakeBoard(null)
+            notify('Transferred board opened on this device.', 'success')
+          }}
         />
       )}
     </div>

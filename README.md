@@ -4,7 +4,7 @@
 
 A local-first spatial thinking surface for touch displays, classrooms, studios, and collaborative workshops. It runs entirely in the browser and can be hosted on GitHub Pages without a server.
 
-## Current release — v0.2.0
+## Current release — v0.3.0
 
 - Pressure-aware pen and highlighter input
 - Infinite pan-and-zoom canvas with mouse, touch, and pen support
@@ -13,6 +13,8 @@ A local-first spatial thinking surface for touch displays, classrooms, studios, 
 - Event provenance and animated replay scoped to work after the latest clear
 - Continuously moving Session Replay, Ink Drift, and CoLab Galaxy screensavers
 - Collapsible right-hand board settings panel
+- QR board handoff with one-use, encrypted peer-to-peer transfer
+- Mobile receiving preview with Save Project and Open in CoLab Board actions
 - Installable PWA with an offline application shell
 - Runtime-swappable brand themes with the Ethical Tech CoLab website identity
   active by default and the original Warm Studio identity included as a sample
@@ -31,6 +33,9 @@ Use `npm run build` to type-check and create the production site in `dist/`. Use
 The included Pages workflow deploys `dist/` on pushes to `main`. In the repository settings, set Pages to use **GitHub Actions** as its source.
 
 All board content stays on the device unless a user explicitly exports a project or image.
+QR handoff uses the public PeerJS service for ephemeral connection signaling;
+board content itself travels directly between devices over an encrypted WebRTC
+data channel and is not stored by the signaling service.
 
 ## Branding and themes
 
