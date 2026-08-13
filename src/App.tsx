@@ -76,6 +76,7 @@ import {
   withSpatialTransform,
 } from './board'
 import { loadBoard, saveBoard } from './persistence'
+import { createBrandedPng } from './exportImage'
 import {
   clearTransferIntent,
   getTransferIntent,
@@ -485,7 +486,16 @@ function App() {
 
   const scheduleIdle = useCallback(() => {
     window.clearTimeout(idleTimer.current)
-    if (preferences.idleMinutes <= 0 || board.items.length === 0) return
+    const modalOpen = Boolean(
+      replay || takeBoard || deviceTransfer || helpOpen || themeItOpen,
+    )
+    if (
+      modalOpen ||
+      preferences.idleMinutes <= 0 ||
+      board.items.length === 0
+    ) {
+      return
+    }
     idleTimer.current = window.setTimeout(
       () =>
         setReplay({
@@ -494,7 +504,16 @@ function App() {
         }),
       preferences.idleMinutes * 60_000,
     )
-  }, [board.items.length, preferences.idleMinutes, preferences.screensaverMode])
+  }, [
+    board.items.length,
+    deviceTransfer,
+    helpOpen,
+    preferences.idleMinutes,
+    preferences.screensaverMode,
+    replay,
+    takeBoard,
+    themeItOpen,
+  ])
 
   useEffect(() => {
     scheduleIdle()
@@ -655,7 +674,8 @@ function App() {
     }
   }
 
-  const exportPng = () => {
+  const exportPng = async () => {
+    setMenuOpen(false)
     const canvas = window.document.querySelector<HTMLCanvasElement>(
       '.canvas-viewport > canvas',
     )
@@ -663,15 +683,16 @@ function App() {
       notify('The canvas is not ready to export.', 'error')
       return
     }
-    canvas.toBlob((blob) => {
-      if (!blob) {
-        notify('The PNG could not be created.', 'error')
-        return
-      }
+    try {
+      const blob = await createBrandedPng(canvas, board.title)
       downloadBlob(blob, `${safeFileName(board.title)}.png`)
-      notify('Current view exported as PNG.', 'success')
-    }, 'image/png')
-    setMenuOpen(false)
+      notify('Branded current view exported as PNG.', 'success')
+    } catch (error: unknown) {
+      notify(
+        error instanceof Error ? error.message : 'The PNG could not be created.',
+        'error',
+      )
+    }
   }
 
   const clearBoard = () => {
@@ -859,7 +880,11 @@ function App() {
           : 'Saved on this device'
 
   return (
-    <div className="app-shell">
+    <div
+      className="app-shell"
+      onPointerDownCapture={markActivity}
+      onKeyDownCapture={markActivity}
+    >
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark" aria-hidden="true">
@@ -923,20 +948,20 @@ function App() {
             className="take-board-button"
             type="button"
             aria-label="Take board"
+            title="Take board"
             disabled={board.items.length === 0}
             onClick={() => setTakeBoard({})}
           >
             <QrCode />
-            <span>Take board</span>
           </button>
           <button
             className="receive-device-button"
             type="button"
             aria-label="Add from device"
+            title="Add from device"
             onClick={() => setDeviceTransfer({ mode: 'receive' })}
           >
             <ScanLine />
-            <span>Add from device</span>
           </button>
           <div className="menu-anchor">
             <button

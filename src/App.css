@@ -178,6 +178,12 @@
   background: var(--brand-control);
 }
 
+.header-actions .take-board-button,
+.header-actions .receive-device-button {
+  min-width: 38px;
+  padding: 0;
+}
+
 .header-actions .replay-button:hover {
   background: #245f4d;
 }

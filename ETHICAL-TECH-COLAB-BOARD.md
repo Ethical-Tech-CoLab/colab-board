@@ -180,6 +180,13 @@ eight-character codes, allow one completed delivery, and expire after ten
 minutes. GitHub Pages remains the application host and direct project download
 remains the offline fallback.
 
+### Deferred transfer defect
+
+- [GitHub issue #1](https://github.com/Ethical-Tech-CoLab/ethical-tech-colab-board/issues/1):
+  mobile QR handoff can intermittently remain on the connected modal even though
+  entering the same transfer code completes immediately. Keep code entry and
+  project download as the supported workarounds until this is prioritized.
+
 ## P0 — Fully Responsive and Portrait-Ready Workspace — Implemented in v0.8.0
 
 Make every application surface adapt to the browser viewport, including
@@ -270,3 +277,39 @@ Acceptance criteria:
   under two minutes without editing code.
 - Generated themes survive reload, can be exported/imported, and never alter
   board content.
+
+## Recommended Next Releases — reviewed August 2026
+
+### P0 — v0.11 Board editing essentials
+
+Prioritize day-to-day whiteboard ergonomics before adding more infrastructure:
+
+- Lasso and multi-select across ink, notes, and images.
+- Move, resize, duplicate, copy/paste, group, lock, and layer selected objects.
+- Touch-friendly selection handles that coexist with Surface-style canvas grab.
+- Preserve every transform through undo/redo, autosave, replay, project export,
+  and spatial view.
+
+This is the highest-value next release because the board can create rich
+content, but editing and reorganizing several ideas is still slower than
+creating them.
+
+### P1 — v0.12 Replay Studio and screensaver pack
+
+- Add Exact, Accelerated, Artistic, Ghost Trails, and Infinite Evolution replay
+  treatments using the existing timeline.
+- Add selectable fade-to-white/black, particle dissolve, blueprint burnoff,
+  digital glitch, and ink evaporation endings.
+- Ship two contrasting moving screensavers from the original library first:
+  WarGames Terminal and Retro Snake.
+
+This extends the product's signature replay experience without introducing new
+data or hosting requirements.
+
+### P2 — hardware and live collaboration experiments
+
+- Prototype Surface Dial/WebHID only after confirming access to representative
+  hardware and browser support.
+- Defer multi-user peer-to-peer collaboration until the board editing model and
+  transfer state machine are hardened; collaboration has the largest
+  reliability, conflict-resolution, and accessibility cost.

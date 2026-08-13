@@ -4,7 +4,7 @@
 
 A local-first spatial thinking surface for touch displays, classrooms, studios, and collaborative workshops. It runs entirely in the browser and can be hosted on GitHub Pages without a server.
 
-## Current release — v0.10.0
+## Current release — v0.10.1
 
 - Pressure-aware pen and highlighter input
 - Surface-style touch input: one finger grabs the complete canvas, two fingers
@@ -12,9 +12,12 @@ A local-first spatial thinking surface for touch displays, classrooms, studios, 
 - Infinite pan-and-zoom canvas with mouse, touch, and pen support
 - Sticky notes, images, eraser, selection, undo, and redo
 - IndexedDB autosave with portable JSON project files and PNG export
+- Branded PNG exports with a visible live-site link and scannable return QR code
 - Event provenance and animated replay scoped to work after the latest clear
 - Continuously moving Session Replay, Ink Drift, CoLab Galaxy, Aurora Flow, and
   Idea Constellation screensavers
+- Idle detection covers the full application and stays suspended while modal
+  transfer, help, or Theme-It workflows are open
 - Collapsible right-hand board settings panel
 - Full-viewport responsive layouts for compact landscape, tablet portrait, and
   portrait-oriented shared displays
