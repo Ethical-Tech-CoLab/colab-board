@@ -1,5 +1,6 @@
 :root,
-[data-brand='ethical-tech'] {
+[data-brand='ethical-tech'],
+[data-brand='garage-colab'] {
   color-scheme: dark;
   --brand-background: #120c1a;
   --brand-surface: #1b1226;
@@ -89,6 +90,54 @@
   --brand-radius: 10px;
   --brand-radius-large: 20px;
   --brand-grain-opacity: 0;
+}
+
+[data-brand='garage'] {
+  color-scheme: dark;
+  --brand-background: #100b16;
+  --brand-surface: #19101f;
+  --brand-panel: #211428;
+  --brand-card: #27172f;
+  --brand-foreground: #ffffff;
+  --brand-muted: rgba(246, 239, 249, 0.62);
+  --brand-border: rgba(227, 27, 61, 0.26);
+  --brand-border-strong: rgba(227, 27, 61, 0.52);
+  --brand-accent: #e31b3d;
+  --brand-accent-hover: #f12b4c;
+  --brand-accent-ink: #ffffff;
+  --brand-secondary: #3b1878;
+  --brand-secondary-ink: #ffffff;
+  --brand-canvas: #171020;
+  --brand-grid: rgba(227, 27, 61, 0.11);
+  --brand-danger: #ff5d74;
+  --brand-success: #c8f04b;
+  --brand-warning: #f7a53b;
+  --brand-glow: #a80000;
+  --brand-glow-2: #7b5cff;
+  --brand-control: rgba(255, 255, 255, 0.06);
+  --brand-control-hover: rgba(227, 27, 61, 0.14);
+  --brand-glass: color-mix(
+    in srgb,
+    #100b16 var(--overlay-opacity, 88%),
+    transparent
+  );
+  --brand-panel-glass: color-mix(
+    in srgb,
+    #211428 var(--overlay-opacity, 88%),
+    transparent
+  );
+  --brand-overlay: rgba(8, 4, 12, 0.72);
+  --brand-shadow-color: rgba(4, 2, 8, 0.46);
+  --brand-selection: #e31b3d;
+  --brand-font-sans:
+    Aptos, 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --brand-font-heading:
+    'Segoe UI Variable Display', 'Arial Black', Aptos, sans-serif;
+  --brand-font-display:
+    'Segoe UI Variable Display', 'Arial Black', Aptos, sans-serif;
+  --brand-radius: 5px;
+  --brand-radius-large: 11px;
+  --brand-grain-opacity: 0.025;
 }
 
 [data-brand='signal'] {

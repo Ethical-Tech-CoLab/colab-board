@@ -29,6 +29,8 @@ export type ReplayEndEffect =
   | 'evaporate'
 export type BrandThemeId =
   | 'ethical-tech'
+  | 'garage'
+  | 'garage-colab'
   | 'studio'
   | 'signal'
   | 'ocean'

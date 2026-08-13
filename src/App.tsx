@@ -826,7 +826,7 @@ function App() {
       return
     }
     try {
-      const blob = await createBrandedPng(canvas, board.title)
+      const blob = await createBrandedPng(canvas, board.title, activeTheme)
       downloadBlob(blob, `${safeFileName(board.title)}.png`)
       notify('Branded current view exported as PNG.', 'success')
     } catch (error: unknown) {

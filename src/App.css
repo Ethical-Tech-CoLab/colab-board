@@ -3702,6 +3702,21 @@ kbd {
   object-fit: contain;
 }
 
+[data-brand='garage'] .brand-mark:has(img),
+[data-brand='garage-colab'] .brand-mark:has(img) {
+  width: 96px;
+  flex-basis: 96px;
+  padding: 6px 8px;
+  background: #a80000;
+}
+
+[data-brand='garage'] .brand-mark.small:has(img),
+[data-brand='garage-colab'] .brand-mark.small:has(img) {
+  width: 82px;
+  flex-basis: 82px;
+  padding: 6px;
+}
+
 .brand-copy strong,
 .board-title input {
   color: var(--brand-foreground);
@@ -4071,6 +4086,24 @@ kbd {
 
 .preview-ethical-tech {
   background: #201630;
+}
+
+.preview-garage {
+  background: #a80000;
+}
+
+.preview-garage img {
+  padding: 5px 3px;
+  object-fit: contain;
+}
+
+.preview-garage-colab {
+  background: #201630;
+}
+
+.preview-garage-colab img {
+  padding: 5px 3px;
+  object-fit: contain;
 }
 
 .preview-signal {

@@ -4,7 +4,7 @@
 
 A local-first spatial thinking surface for touch displays, classrooms, studios, and collaborative workshops. It runs entirely in the browser and can be hosted on GitHub Pages without a server.
 
-## Current release — v0.12.0
+## Current release — v0.12.1
 
 - Pressure-aware pen and highlighter input with Surface Pen rear-eraser and
   barrel-button canvas movement
@@ -14,6 +14,8 @@ A local-first spatial thinking surface for touch displays, classrooms, studios, 
 - Sticky notes, images, eraser, selection, undo, and redo
 - IndexedDB autosave with portable JSON project files and PNG export
 - Branded PNG exports with a visible live-site link and scannable return QR code
+- Export footers include the active theme logo or mark and size the return QR to
+  the four- or five-line footer text block
 - Event provenance and animated replay scoped to work after the latest clear
 - Replay Studio with Exact, Accelerated, Artistic Camera, Ghost Trails, and
   Infinite Evolution treatments plus six selectable ending effects
@@ -39,8 +41,8 @@ A local-first spatial thinking surface for touch displays, classrooms, studios, 
   placed near the current view without replacing existing work
 - Installable PWA with an offline application shell
 - Runtime-swappable brand themes with the Ethical Tech CoLab website identity
-  active by default, plus Warm Studio, Signal Lab, Civic Ocean, and Sunrise
-  Commons packs
+  active by default, plus The Garage Crimson, The Garage · CoLab, Warm Studio,
+  Signal Lab, Civic Ocean, and Sunrise Commons packs
 - Local Theme-It wizard with uploaded-reference and screen color sampling,
   primary/accent/canvas/surface controls, local logo support, automatic contrast
   derivation, live preview, persistence, and portable theme pack import/export
