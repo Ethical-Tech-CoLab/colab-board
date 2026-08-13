@@ -325,6 +325,24 @@ through a dense design-tool model.
 - Header and Settings glass use a lighter version of the persisted overlay
   opacity so more of the board stays visible beneath application chrome.
 
+### Completed Spatial authoring — v0.13.0
+
+- The shared pen, highlighter, eraser, Post-It, Select, Move, and image tools
+  now remain in Spatial instead of silently returning to Canvas.
+- Pen and highlighter input raycast onto an adjustable 2.5D work plane. A
+  transient Three.js mesh updates during the gesture, then one normal board
+  event commits on pointer-up for undo, replay, export, autosave, and live-board
+  compatibility.
+- Surface Pen pressure, rear eraser, barrel navigation, touch navigation/draw
+  preference, Space-drag orbit, and Surface Dial ink-size mode retain their
+  established behavior in Spatial.
+- Post-Its can be placed at depth and edited in a projected lightweight text
+  surface. Images can be inserted or dropped directly into the 3D scene.
+- Spatial uses a stable board origin while authoring so off-center additions do
+  not recenter and jump the complete scene after each commit.
+- The feature adds no dependency and only a few kilobytes to the already
+  lazy-loaded Spatial payload.
+
 ### Lower-priority follow-ons
 
 - Revisit a small, touch-first subset of multi-object editing after observing

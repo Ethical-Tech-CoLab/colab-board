@@ -1,4 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react'
 import {
   Box,
   EyeOff,
@@ -12,6 +17,7 @@ import {
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import {
+  createNote,
   getItemBounds,
   getItemsCenter,
   getSpatialTransform,
@@ -20,12 +26,25 @@ import {
 } from './board'
 import type { CanvasBrandTokens } from './branding'
 import { NOTE_SURFACE_OPACITY } from './noteAppearance'
+import {
+  getSpatialInputAction,
+  spatialItemVersion,
+  spatialPlaneZ,
+  spatialTransformAtDepth,
+  spatialWorldToBoardPoint,
+  SPATIAL_WORLD_SCALE,
+} from './spatialAuthoring'
+import { getPointerPressure } from './surfacePointer'
 import type {
   BoardDocument,
   BoardItem,
+  DialMode,
+  InkStyle,
   NoteItem,
   PerspectiveGuide,
   Point,
+  StrokeItem,
+  Tool,
 } from './types'
 
 interface SpatialBoardProps {
@@ -35,7 +54,26 @@ interface SpatialBoardProps {
   selectedId: string | null
   previewItem: BoardItem | null
   guideMode: PerspectiveGuide
+  tool: Tool
+  color: string
+  strokeWidth: number
+  inkStyle: InkStyle
+  noteColor: string
+  touchMode: 'pan' | 'draw'
+  dialMode: DialMode
+  workPlaneDepth: number
   onGuideModeChange: (mode: PerspectiveGuide) => void
+  onAddItem: (item: BoardItem, eventAt?: number) => void
+  onUpdateItem: (item: BoardItem) => void
+  onDeleteItem: (id: string) => void
+  onFilesDropped: (
+    files: FileList,
+    center: { x: number; y: number },
+    depth: number,
+  ) => void
+  onStrokeWidthDelta: (delta: number) => void
+  onToolChange: (tool: Tool) => void
+  onNoteEditingChange: (editing: boolean) => void
   onSelectionChange: (id: string | null) => void
   onActivity: () => void
 }
@@ -47,11 +85,79 @@ interface SceneRuntime {
   controls: OrbitControls
   content: THREE.Group
   guide: THREE.Group | null
+  workPlane: THREE.Group | null
+  draft: THREE.Group | null
   selection: THREE.Box3Helper | null
 }
 
-const WORLD_SCALE = 0.01
 const MAX_STROKE_POINTS = 140
+
+interface NoteEditorPosition {
+  x: number
+  y: number
+}
+
+function SpatialNoteEditor({
+  note,
+  position,
+  onCommit,
+  onCancel,
+}: {
+  note: NoteItem
+  position: NoteEditorPosition
+  onCommit: (text: string) => void
+  onCancel: () => void
+}) {
+  const [text, setText] = useState(note.text)
+  const editorRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    editorRef.current?.focus()
+    editorRef.current?.select()
+  }, [])
+
+  const commit = () => onCommit(text)
+
+  return (
+    <div
+      className="spatial-note-editor"
+      style={
+        {
+          '--note-color': note.color,
+          left: position.x,
+          top: position.y,
+        } as CSSProperties
+      }
+    >
+      <textarea
+        ref={editorRef}
+        value={text}
+        aria-label="Edit spatial note"
+        placeholder="Add a thought..."
+        onChange={(event) => setText(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault()
+            onCancel()
+          }
+          if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+            event.preventDefault()
+            commit()
+          }
+        }}
+      />
+      <div>
+        <span>Ctrl + Enter to save</span>
+        <button type="button" onClick={onCancel}>
+          Cancel
+        </button>
+        <button type="button" onClick={commit}>
+          Save note
+        </button>
+      </div>
+    </div>
+  )
+}
 
 function samplePoints(points: Point[]): Point[] {
   if (points.length <= MAX_STROKE_POINTS) return points
@@ -87,9 +193,12 @@ function createPressureGeometry(
     const normalX = -tangentY
     const normalY = tangentX
     const radius =
-      width * WORLD_SCALE * Math.max(0.35, point.pressure || 0.5) * 0.52
-    const x = (point.x - center.x) * WORLD_SCALE
-    const y = -(point.y - center.y) * WORLD_SCALE
+      width *
+      SPATIAL_WORLD_SCALE *
+      Math.max(0.35, point.pressure || 0.5) *
+      0.52
+    const x = (point.x - center.x) * SPATIAL_WORLD_SCALE
+    const y = -(point.y - center.y) * SPATIAL_WORLD_SCALE
     const z = (point.pressure - 0.5) * radius * 0.8
     if (index > 0) {
       distance += Math.hypot(point.x - previous.x, point.y - previous.y)
@@ -227,17 +336,15 @@ function addItemId(object: THREE.Object3D, itemId: string) {
 function createSpatialItem(
   item: BoardItem,
   boardCenter: { x: number; y: number },
-  index: number,
 ): THREE.Group {
   const bounds = getItemBounds(item)
   const centerX = bounds.x + bounds.width / 2
   const centerY = bounds.y + bounds.height / 2
   const group = new THREE.Group()
   group.position.set(
-    (centerX - boardCenter.x) * WORLD_SCALE,
-    -(centerY - boardCenter.y) * WORLD_SCALE,
+    (centerX - boardCenter.x) * SPATIAL_WORLD_SCALE,
+    -(centerY - boardCenter.y) * SPATIAL_WORLD_SCALE,
   )
-  group.userData.itemIndex = index
 
   if (item.type === 'stroke') {
     if (item.points.length === 0) return group
@@ -249,7 +356,7 @@ function createSpatialItem(
     const geometry = isDot
       ? new THREE.SphereGeometry(
           item.width *
-            WORLD_SCALE *
+            SPATIAL_WORLD_SCALE *
             Math.max(0.35, firstPoint.pressure || 0.5) *
             0.52,
           16,
@@ -298,10 +405,10 @@ function createSpatialItem(
             Math.max(0.35, point.pressure) *
             0.4
           positions.push(
-            (point.x + normalX * across - centerX) * WORLD_SCALE,
-            -(point.y + normalY * across - centerY) * WORLD_SCALE,
+            (point.x + normalX * across - centerX) * SPATIAL_WORLD_SCALE,
+            -(point.y + normalY * across - centerY) * SPATIAL_WORLD_SCALE,
             item.width *
-              WORLD_SCALE *
+              SPATIAL_WORLD_SCALE *
               (0.45 +
                 Math.abs(sparkleOffset(item.seed ?? 0, randomIndex + 1)) * 0.3),
           )
@@ -333,7 +440,10 @@ function createSpatialItem(
             blending: THREE.AdditiveBlending,
             depthWrite: false,
             opacity: 0.9,
-            size: Math.max(0.014, item.width * WORLD_SCALE * 0.24),
+            size: Math.max(
+              0.014,
+              item.width * SPATIAL_WORLD_SCALE * 0.24,
+            ),
             sizeAttenuation: true,
             transparent: true,
             vertexColors: true,
@@ -344,8 +454,8 @@ function createSpatialItem(
   }
 
   if (item.type === 'note') {
-    const width = item.width * WORLD_SCALE
-    const height = item.height * WORLD_SCALE
+    const width = item.width * SPATIAL_WORLD_SCALE
+    const height = item.height * SPATIAL_WORLD_SCALE
     const body = new THREE.Mesh(
       new THREE.BoxGeometry(width, height, 0.075),
       new THREE.MeshStandardMaterial({
@@ -372,8 +482,8 @@ function createSpatialItem(
   }
 
   if (item.type === 'image') {
-    const width = item.width * WORLD_SCALE
-    const height = item.height * WORLD_SCALE
+    const width = item.width * SPATIAL_WORLD_SCALE
+    const height = item.height * SPATIAL_WORLD_SCALE
     const frame = new THREE.Mesh(
       new THREE.BoxGeometry(width + 0.08, height + 0.08, 0.06),
       new THREE.MeshStandardMaterial({
@@ -395,17 +505,17 @@ function createSpatialItem(
   }
 
   addItemId(group, item.id)
-  applySpatialTransform(group, item, index)
+  group.userData.itemVersion = spatialItemVersion(item)
+  applySpatialTransform(group, item)
   return group
 }
 
 function applySpatialTransform(
   group: THREE.Object3D,
   item: BoardItem,
-  index: number,
 ) {
   const spatial = getSpatialTransform(item)
-  const baseZ = spatial.depth * WORLD_SCALE + index * 0.035
+  const baseZ = spatialPlaneZ(spatial.depth, item.id)
   group.position.z = baseZ
   group.rotation.set(
     THREE.MathUtils.degToRad(spatial.rotationX),
@@ -507,6 +617,56 @@ function createPerspectiveGuide(
   return group
 }
 
+function createWorkPlane(z: number, accentColor: string): THREE.Group {
+  const group = new THREE.Group()
+  group.position.z = z
+  group.userData.workPlane = true
+  const geometry = new THREE.PlaneGeometry(16, 10)
+  group.add(
+    new THREE.Mesh(
+      geometry,
+      new THREE.MeshBasicMaterial({
+        color: accentColor,
+        depthWrite: false,
+        opacity: 0.035,
+        side: THREE.DoubleSide,
+        transparent: true,
+      }),
+    ),
+  )
+  group.add(
+    new THREE.LineSegments(
+      new THREE.EdgesGeometry(geometry),
+      new THREE.LineBasicMaterial({
+        color: accentColor,
+        depthWrite: false,
+        opacity: 0.34,
+        transparent: true,
+      }),
+    ),
+  )
+  return group
+}
+
+function clearDraft(runtime: SceneRuntime) {
+  if (!runtime.draft) return
+  runtime.scene.remove(runtime.draft)
+  disposeObject(runtime.draft)
+  runtime.draft = null
+}
+
+function showDraft(
+  runtime: SceneRuntime,
+  draft: StrokeItem,
+  origin: { x: number; y: number },
+) {
+  clearDraft(runtime)
+  const preview = createSpatialItem(draft, origin)
+  preview.userData.draft = true
+  runtime.scene.add(preview)
+  runtime.draft = preview
+}
+
 export default function SpatialBoard({
   document: boardDocument,
   canvasTheme,
@@ -514,7 +674,22 @@ export default function SpatialBoard({
   selectedId,
   previewItem,
   guideMode,
+  tool,
+  color,
+  strokeWidth,
+  inkStyle,
+  noteColor,
+  touchMode,
+  dialMode,
+  workPlaneDepth,
   onGuideModeChange,
+  onAddItem,
+  onUpdateItem,
+  onDeleteItem,
+  onFilesDropped,
+  onStrokeWidthDelta,
+  onToolChange,
+  onNoteEditingChange,
   onSelectionChange,
   onActivity,
 }: SpatialBoardProps) {
@@ -522,12 +697,119 @@ export default function SpatialBoard({
   const runtimeRef = useRef<SceneRuntime | null>(null)
   const selectionCallback = useRef(onSelectionChange)
   const activityCallback = useRef(onActivity)
+  const noteEditingCallback = useRef(onNoteEditingChange)
+  const itemsRef = useRef(boardDocument.items)
+  const originRef = useRef<{ x: number; y: number } | null>(
+    boardDocument.items.length > 0
+      ? getItemsCenter(boardDocument.items)
+      : null,
+  )
+  const originDocumentId = useRef(boardDocument.id)
+  const authoringRef = useRef({
+    tool,
+    color,
+    strokeWidth,
+    inkStyle,
+    noteColor,
+    touchMode,
+    dialMode,
+    workPlaneDepth,
+    onAddItem,
+    onUpdateItem,
+    onDeleteItem,
+    onFilesDropped,
+    onStrokeWidthDelta,
+    onToolChange,
+  })
   const [error, setError] = useState('')
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+  const [editorPosition, setEditorPosition] =
+    useState<NoteEditorPosition | null>(null)
+  const editingNote = boardDocument.items.find(
+    (item): item is NoteItem =>
+      item.id === editingNoteId && item.type === 'note',
+  )
+
+  itemsRef.current = boardDocument.items
 
   useEffect(() => {
     selectionCallback.current = onSelectionChange
     activityCallback.current = onActivity
-  }, [onActivity, onSelectionChange])
+    noteEditingCallback.current = onNoteEditingChange
+  }, [onActivity, onNoteEditingChange, onSelectionChange])
+
+  useEffect(
+    () => () => noteEditingCallback.current(false),
+    [],
+  )
+
+  useEffect(() => {
+    if (
+      editingNoteId &&
+      tool !== 'select' &&
+      tool !== 'note'
+    ) {
+      setEditingNoteId(null)
+      setEditorPosition(null)
+      noteEditingCallback.current(false)
+    }
+  }, [editingNoteId, tool])
+
+  useEffect(() => {
+    if (editingNoteId && !editingNote) {
+      setEditingNoteId(null)
+      setEditorPosition(null)
+      noteEditingCallback.current(false)
+    }
+  }, [editingNote, editingNoteId])
+
+  useEffect(() => {
+    const runtime = runtimeRef.current
+    if (runtime) runtime.controls.enabled = editingNoteId === null
+  }, [editingNoteId])
+
+  useEffect(() => {
+    authoringRef.current = {
+      tool,
+      color,
+      strokeWidth,
+      inkStyle,
+      noteColor,
+      touchMode,
+      dialMode,
+      workPlaneDepth,
+      onAddItem,
+      onUpdateItem,
+      onDeleteItem,
+      onFilesDropped,
+      onStrokeWidthDelta,
+      onToolChange,
+    }
+  }, [
+    color,
+    dialMode,
+    inkStyle,
+    noteColor,
+    onAddItem,
+    onDeleteItem,
+    onFilesDropped,
+    onStrokeWidthDelta,
+    onToolChange,
+    onUpdateItem,
+    strokeWidth,
+    tool,
+    touchMode,
+    workPlaneDepth,
+  ])
+
+  useEffect(() => {
+    if (originDocumentId.current === boardDocument.id) return
+    originDocumentId.current = boardDocument.id
+    originRef.current =
+      boardDocument.items.length > 0
+        ? getItemsCenter(boardDocument.items)
+        : null
+  }, [boardDocument.id, boardDocument.items])
 
   useEffect(() => {
     const container = containerRef.current
@@ -580,9 +862,12 @@ export default function SpatialBoard({
         controls,
         content,
         guide: null,
+        workPlane: null,
+        draft: null,
         selection: null,
       }
       runtimeRef.current = runtime
+      const sceneRuntime = runtime
 
       const resize = () => {
         const bounds = container.getBoundingClientRect()
@@ -596,11 +881,269 @@ export default function SpatialBoard({
 
       const raycaster = new THREE.Raycaster()
       const pointer = new THREE.Vector2()
-      const pointerDown = (event: PointerEvent) => {
-        pointerStart = { x: event.clientX, y: event.clientY }
-        activityCallback.current()
+      const intersection = new THREE.Vector3()
+      const workPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1))
+      type DrawInteraction = {
+        kind: 'draw'
+        pointerId: number
+        startedAt: number
+        startedPerformance: number
+        id: string
+        depth: number
+        color: string
+        width: number
+        opacity: number
+        effect?: 'sparkle'
+        seed?: number
+        points: Point[]
       }
-      const pointerUp = (event: PointerEvent) => {
+      type EraseInteraction = {
+        kind: 'erase'
+        pointerId: number
+        erasedIds: Set<string>
+      }
+      let interaction: DrawInteraction | EraseInteraction | null = null
+      let spacePressed = false
+      let draftFrame: number | undefined
+
+      const getOrigin = () => {
+        if (!originRef.current) {
+          originRef.current =
+            itemsRef.current.length > 0
+              ? getItemsCenter(itemsRef.current)
+              : { x: 0, y: 0 }
+        }
+        return originRef.current
+      }
+      const updateRay = (event: { clientX: number; clientY: number }) => {
+        const bounds = renderer.domElement.getBoundingClientRect()
+        pointer.set(
+          ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
+          -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
+        )
+        raycaster.setFromCamera(pointer, camera)
+        return bounds
+      }
+      const hitAt = (event: { clientX: number; clientY: number }) => {
+        updateRay(event)
+        return raycaster.intersectObjects(content.children, true)[0]
+      }
+      const pointAtDepth = (
+        event: { clientX: number; clientY: number },
+        depth: number,
+        itemId?: string,
+      ) => {
+        updateRay(event)
+        workPlane.constant = -spatialPlaneZ(depth, itemId)
+        const world = raycaster.ray.intersectPlane(workPlane, intersection)
+        return world
+          ? spatialWorldToBoardPoint(world, getOrigin())
+          : null
+      }
+      const stopAuthoringEvent = (event: PointerEvent) => {
+        event.preventDefault()
+      }
+      const strokeFromInteraction = (
+        current: DrawInteraction,
+        final = false,
+      ): StrokeItem => {
+        const points =
+          final && current.points.length === 1
+            ? [
+                current.points[0],
+                { ...current.points[0], t: 80 },
+              ]
+            : [...current.points]
+        return {
+          id: current.id,
+          type: 'stroke',
+          points,
+          color: current.color,
+          width: current.width,
+          opacity: current.opacity,
+          duration: final
+            ? Math.max(80, points.at(-1)?.t ?? 0)
+            : (points.at(-1)?.t ?? 0),
+          createdAt: current.startedAt,
+          effect: current.effect,
+          seed: current.seed,
+          spatial: spatialTransformAtDepth(current.depth),
+        }
+      }
+      const scheduleDraft = (current: DrawInteraction) => {
+        if (draftFrame !== undefined) return
+        draftFrame = requestAnimationFrame(() => {
+          draftFrame = undefined
+          if (interaction !== current) return
+          showDraft(
+            sceneRuntime,
+            strokeFromInteraction(current),
+            getOrigin(),
+          )
+        })
+      }
+      const eraseAt = (
+        event: PointerEvent,
+        current: EraseInteraction,
+      ) => {
+        const hit = hitAt(event)
+        const id = hit ? String(hit.object.userData.itemId ?? '') : ''
+        if (id && !current.erasedIds.has(id)) {
+          current.erasedIds.add(id)
+          authoringRef.current.onDeleteItem(id)
+        }
+      }
+      const positionEditor = (
+        event: { clientX: number; clientY: number },
+        noteId: string,
+      ) => {
+        const bounds = renderer.domElement.getBoundingClientRect()
+        setEditingNoteId(noteId)
+        noteEditingCallback.current(true)
+        setEditorPosition({
+          x: Math.min(
+            bounds.width - 150,
+            Math.max(150, event.clientX - bounds.left),
+          ),
+          y: Math.min(
+            bounds.height - 110,
+            Math.max(110, event.clientY - bounds.top),
+          ),
+        })
+      }
+      const pointerDown = (event: PointerEvent) => {
+        activityCallback.current()
+        if (interaction && interaction.pointerId !== event.pointerId) {
+          event.preventDefault()
+          return
+        }
+        pointerStart = { x: event.clientX, y: event.clientY }
+        const options = authoringRef.current
+        const action = getSpatialInputAction(
+          event,
+          spacePressed ? 'pan' : options.tool,
+          options.touchMode,
+        )
+        if (
+          action === 'navigate' ||
+          action === 'select' ||
+          action === 'ignore'
+        ) {
+          return
+        }
+
+        const itemId = crypto.randomUUID()
+        const point = pointAtDepth(event, options.workPlaneDepth, itemId)
+        if (!point) return
+        stopAuthoringEvent(event)
+        controls.enabled = false
+
+        if (action === 'note') {
+          const note: NoteItem = {
+            ...createNote(point.x - 120, point.y - 88, options.noteColor),
+            id: itemId,
+            spatial: spatialTransformAtDepth(options.workPlaneDepth),
+          }
+          options.onAddItem(note)
+          options.onToolChange('select')
+          selectionCallback.current(note.id)
+          positionEditor(event, note.id)
+          return
+        }
+
+        renderer.domElement.setPointerCapture(event.pointerId)
+        if (action === 'erase') {
+          interaction = {
+            kind: 'erase',
+            pointerId: event.pointerId,
+            erasedIds: new Set(),
+          }
+          eraseAt(event, interaction)
+          return
+        }
+
+        const startedAt = Date.now()
+        const seed = Math.floor(Math.random() * 0xffffffff)
+        const firstPoint: Point = {
+          ...point,
+          pressure: getPointerPressure(event),
+          t: 0,
+        }
+        interaction = {
+          kind: 'draw',
+          pointerId: event.pointerId,
+          startedAt,
+          startedPerformance: performance.now(),
+          id: itemId,
+          depth: options.workPlaneDepth,
+          color: options.color,
+          width:
+            options.tool === 'highlighter'
+              ? options.strokeWidth * 2.2
+              : options.strokeWidth,
+          opacity: options.tool === 'highlighter' ? 0.28 : 1,
+          effect: options.inkStyle === 'sparkle' ? 'sparkle' : undefined,
+          seed: options.inkStyle === 'sparkle' ? seed : undefined,
+          points: [firstPoint],
+        }
+        showDraft(
+          sceneRuntime,
+          strokeFromInteraction(interaction),
+          getOrigin(),
+        )
+      }
+      const pointerMove = (event: PointerEvent) => {
+        if (!interaction || interaction.pointerId !== event.pointerId) return
+        stopAuthoringEvent(event)
+        activityCallback.current()
+        if (interaction.kind === 'erase') {
+          eraseAt(event, interaction)
+          return
+        }
+
+        const current = interaction
+        const nativeEvents = event.getCoalescedEvents?.() ?? [event]
+        for (const nativeEvent of nativeEvents) {
+          const point = pointAtDepth(
+            nativeEvent,
+            current.depth,
+            current.id,
+          )
+          if (!point) continue
+          current.points.push({
+            ...point,
+            pressure: getPointerPressure(nativeEvent),
+            t: Math.max(
+              0,
+              nativeEvent.timeStamp - current.startedPerformance,
+            ),
+          })
+        }
+        scheduleDraft(current)
+      }
+      const finishPointer = (event: PointerEvent, cancelled = false) => {
+        if (interaction?.pointerId === event.pointerId) {
+          stopAuthoringEvent(event)
+          if (!cancelled && interaction.kind === 'draw') {
+            const stroke = strokeFromInteraction(interaction, true)
+            authoringRef.current.onAddItem(stroke, stroke.createdAt)
+            selectionCallback.current(stroke.id)
+          }
+          if (draftFrame !== undefined) {
+            cancelAnimationFrame(draftFrame)
+            draftFrame = undefined
+          }
+          clearDraft(sceneRuntime)
+          interaction = null
+          queueMicrotask(() => {
+            controls.enabled = true
+            if (renderer.domElement.hasPointerCapture(event.pointerId)) {
+              renderer.domElement.releasePointerCapture(event.pointerId)
+            }
+          })
+          return
+        }
+
         if (
           Math.hypot(
             event.clientX - pointerStart.x,
@@ -609,19 +1152,111 @@ export default function SpatialBoard({
         ) {
           return
         }
-        const bounds = renderer.domElement.getBoundingClientRect()
-        pointer.set(
-          ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
-          -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
+        const action = getSpatialInputAction(
+          event,
+          authoringRef.current.tool,
+          authoringRef.current.touchMode,
         )
-        raycaster.setFromCamera(pointer, camera)
-        const hit = raycaster.intersectObjects(content.children, true)[0]
+        if (action !== 'select') return
+        const hit = hitAt(event)
         selectionCallback.current(
           hit ? String(hit.object.userData.itemId ?? '') || null : null,
         )
       }
-      renderer.domElement.addEventListener('pointerdown', pointerDown)
-      renderer.domElement.addEventListener('pointerup', pointerUp)
+      const editNote = (event: MouseEvent) => {
+        if (authoringRef.current.tool !== 'select') return
+        const hit = hitAt(event)
+        const noteId = hit ? String(hit.object.userData.itemId ?? '') : ''
+        const item = itemsRef.current.find((candidate) => candidate.id === noteId)
+        if (item?.type !== 'note') return
+        event.preventDefault()
+        selectionCallback.current(item.id)
+        positionEditor(event, item.id)
+      }
+      const dragOver = (event: DragEvent) => {
+        if (!event.dataTransfer?.types.includes('Files')) return
+        event.preventDefault()
+        event.dataTransfer.dropEffect = 'copy'
+      }
+      const drop = (event: DragEvent) => {
+        const files = event.dataTransfer?.files
+        if (!files || files.length === 0) return
+        const options = authoringRef.current
+        const point = pointAtDepth(
+          event,
+          options.workPlaneDepth,
+        )
+        if (!point) return
+        event.preventDefault()
+        activityCallback.current()
+        options.onFilesDropped(files, point, options.workPlaneDepth)
+      }
+      const pointerUp = (event: PointerEvent) => finishPointer(event)
+      const pointerCancel = (event: PointerEvent) =>
+        finishPointer(event, true)
+      const abandonInteraction = () => {
+        if (!interaction) return
+        if (draftFrame !== undefined) {
+          cancelAnimationFrame(draftFrame)
+          draftFrame = undefined
+        }
+        clearDraft(sceneRuntime)
+        interaction = null
+        controls.enabled = true
+      }
+      const lostPointerCapture = (event: PointerEvent) => {
+        if (interaction?.pointerId === event.pointerId) abandonInteraction()
+      }
+      const keyDown = (event: KeyboardEvent) => {
+        const target = event.target as HTMLElement | null
+        if (
+          event.code === 'Space' &&
+          target?.tagName !== 'INPUT' &&
+          target?.tagName !== 'TEXTAREA'
+        ) {
+          spacePressed = true
+        }
+      }
+      const keyUp = (event: KeyboardEvent) => {
+        if (event.code === 'Space') spacePressed = false
+      }
+      const wheel = (event: WheelEvent) => {
+        const options = authoringRef.current
+        if (
+          options.dialMode !== 'ink-size' ||
+          (options.tool !== 'pen' &&
+            options.tool !== 'highlighter' &&
+            options.tool !== 'eraser') ||
+          event.ctrlKey
+        ) {
+          return
+        }
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        activityCallback.current()
+        const rotation = event.deltaY || event.deltaX
+        if (rotation !== 0) {
+          options.onStrokeWidthDelta(rotation < 0 ? 1 : -1)
+        }
+      }
+      renderer.domElement.addEventListener('pointerdown', pointerDown, true)
+      renderer.domElement.addEventListener('pointermove', pointerMove, true)
+      renderer.domElement.addEventListener('pointerup', pointerUp, true)
+      renderer.domElement.addEventListener('pointercancel', pointerCancel, true)
+      renderer.domElement.addEventListener(
+        'lostpointercapture',
+        lostPointerCapture,
+      )
+      renderer.domElement.addEventListener('dblclick', editNote)
+      renderer.domElement.addEventListener('dragover', dragOver)
+      renderer.domElement.addEventListener('drop', drop)
+      renderer.domElement.addEventListener('wheel', wheel, {
+        capture: true,
+        passive: false,
+      })
+      window.addEventListener('keydown', keyDown)
+      window.addEventListener('keyup', keyUp)
+      window.addEventListener('blur', abandonInteraction)
 
       const reducedMotion = window.matchMedia(
         '(prefers-reduced-motion: reduce)',
@@ -651,8 +1286,26 @@ export default function SpatialBoard({
 
       return () => {
         renderer.setAnimationLoop(null)
-        renderer.domElement.removeEventListener('pointerdown', pointerDown)
-        renderer.domElement.removeEventListener('pointerup', pointerUp)
+        if (draftFrame !== undefined) cancelAnimationFrame(draftFrame)
+        renderer.domElement.removeEventListener('pointerdown', pointerDown, true)
+        renderer.domElement.removeEventListener('pointermove', pointerMove, true)
+        renderer.domElement.removeEventListener('pointerup', pointerUp, true)
+        renderer.domElement.removeEventListener(
+          'pointercancel',
+          pointerCancel,
+          true,
+        )
+        renderer.domElement.removeEventListener(
+          'lostpointercapture',
+          lostPointerCapture,
+        )
+        renderer.domElement.removeEventListener('dblclick', editNote)
+        renderer.domElement.removeEventListener('dragover', dragOver)
+        renderer.domElement.removeEventListener('drop', drop)
+        renderer.domElement.removeEventListener('wheel', wheel, true)
+        window.removeEventListener('keydown', keyDown)
+        window.removeEventListener('keyup', keyUp)
+        window.removeEventListener('blur', abandonInteraction)
         resizeObserver?.disconnect()
         controls.dispose()
         disposeObject(scene)
@@ -687,15 +1340,52 @@ export default function SpatialBoard({
   useEffect(() => {
     const runtime = runtimeRef.current
     if (!runtime) return
+    if (runtime.workPlane) {
+      runtime.scene.remove(runtime.workPlane)
+      disposeObject(runtime.workPlane)
+      runtime.workPlane = null
+    }
+    if (tool !== 'pen' && tool !== 'highlighter' && tool !== 'note') return
+    const plane = createWorkPlane(
+      spatialPlaneZ(workPlaneDepth),
+      accentColor,
+    )
+    runtime.workPlane = plane
+    runtime.scene.add(plane)
+  }, [accentColor, tool, workPlaneDepth])
+
+  useEffect(() => {
+    const runtime = runtimeRef.current
+    if (!runtime) return
+    if (!originRef.current && boardDocument.items.length > 0) {
+      originRef.current = getItemsCenter(boardDocument.items)
+    }
+    const center = originRef.current ?? { x: 0, y: 0 }
+    const itemsById = new Map(
+      boardDocument.items.map((item) => [item.id, item]),
+    )
     for (const child of [...runtime.content.children]) {
+      const itemId = String(child.userData.itemId ?? '')
+      const item = itemsById.get(itemId)
+      if (
+        item &&
+        child.userData.itemVersion === spatialItemVersion(item)
+      ) {
+        continue
+      }
       runtime.content.remove(child)
       disposeObject(child)
     }
-
-    const center = getItemsCenter(boardDocument.items)
-    boardDocument.items.forEach((item, index) => {
-      runtime.content.add(createSpatialItem(item, center, index))
-    })
+    const existingIds = new Set(
+      runtime.content.children.map((child) =>
+        String(child.userData.itemId ?? ''),
+      ),
+    )
+    for (const item of boardDocument.items) {
+      if (!existingIds.has(item.id)) {
+        runtime.content.add(createSpatialItem(item, center))
+      }
+    }
   }, [accentColor, boardDocument.items, canvasTheme.background])
 
   useEffect(() => {
@@ -705,11 +1395,7 @@ export default function SpatialBoard({
       (child) => child.userData.itemId === previewItem.id,
     )
     if (!group) return
-    applySpatialTransform(
-      group,
-      previewItem,
-      Number(group.userData.itemIndex ?? 0),
-    )
+    applySpatialTransform(group, previewItem)
   }, [accentColor, canvasTheme.background, previewItem])
 
   useEffect(() => {
@@ -739,7 +1425,10 @@ export default function SpatialBoard({
   ])
 
   return (
-    <div className="spatial-viewport" ref={containerRef}>
+    <div
+      className={`spatial-viewport is-tool-${tool}`}
+      ref={containerRef}
+    >
       <div className="spatial-badge">
         <Sparkles />
         <span>
@@ -772,8 +1461,8 @@ export default function SpatialBoard({
       {boardDocument.items.length === 0 && !error && (
         <div className="spatial-empty">
           <Box />
-          <strong>Your spatial scene is ready.</strong>
-          <span>Add ink, notes, or images in Canvas view to bring it alive.</span>
+          <strong>Your Spatial canvas is ready.</strong>
+          <span>Draw here, place a Post-It, or drop an image to begin.</span>
         </div>
       )}
       {error && (
@@ -785,13 +1474,33 @@ export default function SpatialBoard({
       )}
       <div className="spatial-hint">
         <span>
-          <Orbit /> Drag to orbit
+          <Orbit /> {tool === 'pan' ? 'Drag to orbit' : 'Move tool to orbit'}
         </span>
         <span>Scroll or pinch to zoom</span>
         <span>
           <MousePointer2 /> Tap an object to select
         </span>
       </div>
+      {editingNote && editorPosition && (
+        <SpatialNoteEditor
+          key={editingNote.id}
+          note={editingNote}
+          position={editorPosition}
+          onCancel={() => {
+            setEditingNoteId(null)
+            setEditorPosition(null)
+            noteEditingCallback.current(false)
+          }}
+          onCommit={(text) => {
+            if (text !== editingNote.text) {
+              authoringRef.current.onUpdateItem({ ...editingNote, text })
+            }
+            setEditingNoteId(null)
+            setEditorPosition(null)
+            noteEditingCallback.current(false)
+          }}
+        />
+      )}
     </div>
   )
 }

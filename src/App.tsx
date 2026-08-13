@@ -72,7 +72,6 @@ import {
   applyItemEvent,
   createBoard,
   createId,
-  createNote,
   fitImage,
   getItemBounds,
   getItemsCenter,
@@ -309,6 +308,8 @@ function App() {
     useState<ThemeItConfig | null>(loadCustomTheme)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [spatialPreview, setSpatialPreview] = useState<BoardItem | null>(null)
+  const [spatialNoteEditing, setSpatialNoteEditing] = useState(false)
+  const [spatialWorkPlaneDepth, setSpatialWorkPlaneDepth] = useState(0)
   const [saveState, setSaveState] = useState<SaveState>('loading')
   const [loaded, setLoaded] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -668,23 +669,6 @@ function App() {
     scheduleIdle()
   }, [scheduleIdle])
 
-  const addNoteInSpatialView = useCallback(() => {
-    const center = getItemsCenter(board.items, {
-      x: (window.innerWidth / 2 - camera.x) / camera.scale,
-      y: ((window.innerHeight - 76) / 2 - camera.y) / camera.scale,
-    })
-    const note = createNote(
-      center.x - 120,
-      center.y - 88,
-      activeTheme.noteColor,
-    )
-    addItem(note)
-    setSpatialPreview(null)
-    setSelectedId(note.id)
-    setTool('select')
-    markActivity()
-  }, [activeTheme.noteColor, addItem, board.items, camera, markActivity])
-
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (takeBoard) return
@@ -742,20 +726,15 @@ function App() {
       }
       const nextTool = shortcut[event.key.toLowerCase()]
       if (nextTool) {
-        if (nextTool === 'note' && preferences.sceneMode === 'spatial') {
-          addNoteInSpatialView()
-          return
-        }
         setTool(nextTool)
         setSpatialPreview(null)
-        setPreferences((current) => ({ ...current, sceneMode: 'canvas' }))
+        setSelectedId(null)
       }
       if (event.key === '?') setHelpOpen(true)
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [
-    addNoteInSpatialView,
     board.items,
     deleteItem,
     preferences.sceneMode,
@@ -767,7 +746,11 @@ function App() {
   ])
 
   const addImageFiles = useCallback(
-    async (files: FileList, center: { x: number; y: number }) => {
+    async (
+      files: FileList,
+      center: { x: number; y: number },
+      spatialDepth?: number,
+    ) => {
       const imageFiles = [...files].filter((file) =>
         file.type.startsWith('image/'),
       )
@@ -776,16 +759,27 @@ function App() {
         return
       }
 
+      let lastAddedId: string | null = null
       for (const [index, file] of imageFiles.entries()) {
         try {
           const src = await fileAsDataUrl(file)
           const dimensions = await imageDimensions(src)
-          addItem(
-            fitImage(src, file.name, dimensions.width, dimensions.height, {
+          const fitted = fitImage(
+            src,
+            file.name,
+            dimensions.width,
+            dimensions.height,
+            {
               x: center.x + index * 28,
               y: center.y + index * 28,
-            }),
+            },
           )
+          const image =
+            spatialDepth === undefined
+              ? fitted
+              : withSpatialTransform(fitted, { depth: spatialDepth })
+          addItem(image)
+          lastAddedId = image.id
         } catch (error: unknown) {
           notify(
             error instanceof Error
@@ -796,6 +790,9 @@ function App() {
         }
       }
       setTool('select')
+      if (spatialDepth !== undefined && lastAddedId) {
+        setSelectedId(lastAddedId)
+      }
     },
     [addItem, notify],
   )
@@ -1204,7 +1201,9 @@ function App() {
       </header>
 
       <main
-        className={`workspace${settingsOpen ? ' has-settings' : ''}${
+        className={`workspace${preferences.sceneMode === 'spatial' ? ' is-spatial' : ''}${
+          settingsOpen ? ' has-settings' : ''
+        }${
           settingsCollapsed ? ' is-settings-collapsed' : ''
         }`}
       >
@@ -1218,15 +1217,7 @@ function App() {
               aria-label={`${label} (${shortcut})`}
               title={`${label} · ${shortcut}`}
               onClick={() => {
-                if (id === 'note' && preferences.sceneMode === 'spatial') {
-                  addNoteInSpatialView()
-                  return
-                }
                 setSpatialPreview(null)
-                setPreferences((current) => ({
-                  ...current,
-                  sceneMode: 'canvas',
-                }))
                 setTool(id)
                 setSelectedId(null)
                 markActivity()
@@ -1298,6 +1289,14 @@ function App() {
                 selectedId={selectedId}
                 previewItem={spatialPreview}
                 guideMode={preferences.perspectiveGuide}
+                tool={tool}
+                color={preferences.color}
+                strokeWidth={preferences.strokeWidth}
+                inkStyle={preferences.inkStyle}
+                noteColor={activeTheme.noteColor}
+                touchMode={preferences.touchMode}
+                dialMode={preferences.dialMode}
+                workPlaneDepth={spatialWorkPlaneDepth}
                 onGuideModeChange={(perspectiveGuide) =>
                   setPreferences((current) => ({
                     ...current,
@@ -1308,6 +1307,21 @@ function App() {
                   setSpatialPreview(null)
                   setSelectedId(id)
                 }}
+                onAddItem={addItem}
+                onUpdateItem={updateItem}
+                onDeleteItem={deleteItem}
+                onFilesDropped={addImageFiles}
+                onStrokeWidthDelta={(delta) =>
+                  setPreferences((current) => ({
+                    ...current,
+                    strokeWidth: Math.min(
+                      30,
+                      Math.max(1, current.strokeWidth + delta),
+                    ),
+                  }))
+                }
+                onToolChange={setTool}
+                onNoteEditingChange={setSpatialNoteEditing}
                 onActivity={markActivity}
               />
             </Suspense>
@@ -1344,7 +1358,9 @@ function App() {
             </button>
           </div>
 
-          {preferences.sceneMode === 'spatial' && selectedSpatialItem && (
+          {preferences.sceneMode === 'spatial' &&
+            selectedSpatialItem &&
+            !spatialNoteEditing && (
             <SpatialInspector
               item={selectedSpatialItem}
               onPreview={setSpatialPreview}
@@ -1359,62 +1375,90 @@ function App() {
             />
           )}
 
-          {preferences.sceneMode === 'canvas' &&
-            (tool === 'pen' || tool === 'highlighter') && (
+          {(tool === 'pen' ||
+            tool === 'highlighter' ||
+            preferences.sceneMode === 'spatial') && (
             <div className="tool-options">
-              <div className="color-options" aria-label="Ink color">
-                {activeTheme.inkColors.map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    className={preferences.color === color ? 'is-active' : ''}
-                    style={{ '--swatch': color } as React.CSSProperties}
-                    aria-label={`Use color ${color}`}
-                    onClick={() =>
-                      setPreferences((current) => ({
-                        ...current,
-                        color,
-                        inkStyle: 'solid',
-                      }))
-                    }
-                  />
-                ))}
-                <button
-                  type="button"
-                  className={`sparkle-swatch${
-                    preferences.inkStyle === 'sparkle' ? ' is-active' : ''
-                  }`}
-                  aria-label="Use sparkly multicolor ink"
-                  title="Sparkly multicolor ink"
-                  onClick={() =>
-                    setPreferences((current) => ({
-                      ...current,
-                      inkStyle: 'sparkle',
-                       strokeWidth: Math.max(10, current.strokeWidth),
-                    }))
-                  }
-                >
-                  <Sparkles />
-                </button>
-              </div>
-              <span className="options-divider" />
-              <label className="stroke-size">
-                <Pencil size={15} />
-                <input
-                  type="range"
-                  min="2"
-                  max="22"
-                  value={preferences.strokeWidth}
-                  aria-label="Stroke width"
-                  onChange={(event) =>
-                    setPreferences((current) => ({
-                      ...current,
-                      strokeWidth: Number(event.target.value),
-                    }))
-                  }
-                />
-                <span>{preferences.strokeWidth}px</span>
-              </label>
+              {(tool === 'pen' || tool === 'highlighter') && (
+                <>
+                  <div className="color-options" aria-label="Ink color">
+                    {activeTheme.inkColors.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        className={preferences.color === color ? 'is-active' : ''}
+                        style={{ '--swatch': color } as React.CSSProperties}
+                        aria-label={`Use color ${color}`}
+                        onClick={() =>
+                          setPreferences((current) => ({
+                            ...current,
+                            color,
+                            inkStyle: 'solid',
+                          }))
+                        }
+                      />
+                    ))}
+                    <button
+                      type="button"
+                      className={`sparkle-swatch${
+                        preferences.inkStyle === 'sparkle' ? ' is-active' : ''
+                      }`}
+                      aria-label="Use sparkly multicolor ink"
+                      title="Sparkly multicolor ink"
+                      onClick={() =>
+                        setPreferences((current) => ({
+                          ...current,
+                          inkStyle: 'sparkle',
+                          strokeWidth: Math.max(10, current.strokeWidth),
+                        }))
+                      }
+                    >
+                      <Sparkles />
+                    </button>
+                  </div>
+                  <span className="options-divider" />
+                  <label className="stroke-size">
+                    <Pencil size={15} />
+                    <input
+                      type="range"
+                      min="2"
+                      max="22"
+                      value={preferences.strokeWidth}
+                      aria-label="Stroke width"
+                      onChange={(event) =>
+                        setPreferences((current) => ({
+                          ...current,
+                          strokeWidth: Number(event.target.value),
+                        }))
+                      }
+                    />
+                    <span>{preferences.strokeWidth}px</span>
+                  </label>
+                </>
+              )}
+              {preferences.sceneMode === 'spatial' && (
+                <>
+                  {(tool === 'pen' || tool === 'highlighter') && (
+                    <span className="options-divider" />
+                  )}
+                  <label className="spatial-work-plane-depth">
+                    <BringToFront size={15} />
+                    <span>Plane</span>
+                    <input
+                      type="range"
+                      min="-300"
+                      max="300"
+                      step="10"
+                      value={spatialWorkPlaneDepth}
+                      aria-label="Spatial drawing plane depth"
+                      onChange={(event) =>
+                        setSpatialWorkPlaneDepth(Number(event.target.value))
+                      }
+                    />
+                    <output>{spatialWorkPlaneDepth}</output>
+                  </label>
+                </>
+              )}
             </div>
           )}
 
@@ -1969,9 +2013,11 @@ function App() {
               </div>
             </div>
             <p>
-              Double-click with Select to create a note. Drop images directly
-              onto the canvas, then open Spatial view to orbit and shape the
-              scene. Your work autosaves only on this device.
+              Every drawing tool works in Canvas and Spatial. In Spatial, use
+              the Plane control to choose creation depth, the Move tool or
+              Space-drag to orbit, and double-click a Post-It with Select to
+              edit its text. Images can be added or dropped directly into the
+              3D scene. Your work autosaves only on this device.
               Surface Pen top-button shortcuts remain managed by Windows and are
               not exposed to browser apps.
             </p>
@@ -1993,7 +2039,16 @@ function App() {
         accept="image/*"
         multiple
         onChange={(event) => {
-          if (event.target.files) addImageFiles(event.target.files, viewCenter)
+          if (event.target.files) {
+            const isSpatial = preferences.sceneMode === 'spatial'
+            addImageFiles(
+              event.target.files,
+              isSpatial
+                ? getItemsCenter(board.items, { x: 0, y: 0 })
+                : viewCenter,
+              isSpatial ? spatialWorkPlaneDepth : undefined,
+            )
+          }
           event.target.value = ''
         }}
       />

@@ -4,7 +4,7 @@
 
 A local-first spatial thinking surface for touch displays, classrooms, studios, and collaborative workshops. It runs entirely in the browser and can be hosted on GitHub Pages without a server.
 
-## Current release — v0.12.2
+## Current release — v0.13.0
 
 - Pressure-aware pen and highlighter input with Surface Pen rear-eraser and
   barrel-button canvas movement
@@ -13,8 +13,12 @@ A local-first spatial thinking surface for touch displays, classrooms, studios, 
 - Infinite pan-and-zoom canvas with mouse, touch, and pen support
 - Translucent sticky notes across the editable Canvas, replay/export rendering,
   and Spatial view
-- Spatial Post-It creation that stays in 3D, selects the new card, and keeps
-  floating Spatial controls clear of the drawing rail
+- Native Spatial pen, highlighter, rear-eraser, and touch-drawing input with a
+  transient Three.js preview that commits only when the stroke finishes
+- Direct Spatial Post-It placement and text editing, plus image insertion and
+  drag-and-drop at an adjustable work-plane depth
+- Spatial selection, orbit, Surface Pen barrel movement, Surface Dial ink-size
+  adjustment, and responsive controls that stay clear of the drawing rail
 - Images, eraser, selection, undo, and redo
 - IndexedDB autosave with portable JSON project files and PNG export
 - Branded PNG exports with a visible live-site link and scannable return QR code
@@ -53,7 +57,7 @@ A local-first spatial thinking surface for touch displays, classrooms, studios, 
 - Dense Surface-inspired rainbow glitter ink with smooth color travel and
   deterministic micro-sparkles across drawing, autosave, replay, PNG rendering,
   and the Three.js spatial view
-- Opt-in Three.js spatial view with orbit navigation, floating object layers,
+- Opt-in Three.js spatial editor with orbit navigation, floating object layers,
   dimensional pressure-aware ink, illuminated notes, and image panels
 - Persistent spatial transforms for object depth, X/Y tilt, rotation, and scale
   with quick layer actions, reset, keyboard depth nudging, and undo/redo
