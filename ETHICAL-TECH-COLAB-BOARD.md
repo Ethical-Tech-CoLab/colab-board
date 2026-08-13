@@ -313,6 +313,18 @@ through a dense design-tool model.
 - Live synchronization intentionally uses latest-received snapshot semantics.
   The UI warns that simultaneous conflicting edits can replace one another.
 
+### Completed polish — v0.12.2
+
+- Post-Its use one shared translucent surface treatment in the editable Canvas,
+  replay and PNG rendering, and the Three.js Spatial scene.
+- Choosing Post-It while in Spatial creates and selects a centered thought card
+  without returning to the 2D Canvas; the `N` shortcut follows the same path.
+- Spatial badges and perspective controls clear the desktop drawing rail and
+  its hover labels, while compact and portrait layouts retain their stacked
+  placement.
+- Header and Settings glass use a lighter version of the persisted overlay
+  opacity so more of the board stays visible beneath application chrome.
+
 ### Lower-priority follow-ons
 
 - Revisit a small, touch-first subset of multi-object editing after observing

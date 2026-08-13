@@ -11,6 +11,7 @@ import type {
   NoteItem,
   StrokeItem,
 } from './types'
+import { NOTE_SURFACE_OPACITY } from './noteAppearance'
 
 export type ImageCache = Map<string, HTMLImageElement>
 
@@ -275,13 +276,16 @@ function wrapText(
 
 function drawNote(context: CanvasRenderingContext2D, note: NoteItem) {
   context.save()
+  const inheritedAlpha = context.globalAlpha
   context.shadowColor = 'rgba(39, 48, 42, 0.16)'
   context.shadowBlur = 18
   context.shadowOffsetY = 8
+  context.globalAlpha = inheritedAlpha * NOTE_SURFACE_OPACITY
   context.fillStyle = note.color
   context.beginPath()
   context.roundRect(note.x, note.y, note.width, note.height, 10)
   context.fill()
+  context.globalAlpha = inheritedAlpha
   context.shadowColor = 'transparent'
   context.fillStyle = '#25312b'
   context.font = '500 17px "Aptos", "Segoe UI", sans-serif'

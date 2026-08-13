@@ -4,14 +4,18 @@
 
 A local-first spatial thinking surface for touch displays, classrooms, studios, and collaborative workshops. It runs entirely in the browser and can be hosted on GitHub Pages without a server.
 
-## Current release — v0.12.1
+## Current release — v0.12.2
 
 - Pressure-aware pen and highlighter input with Surface Pen rear-eraser and
   barrel-button canvas movement
 - Surface-style touch input: one finger grabs the complete canvas, two fingers
   pinch, and a stylus draws; Settings can switch finger input back to drawing
 - Infinite pan-and-zoom canvas with mouse, touch, and pen support
-- Sticky notes, images, eraser, selection, undo, and redo
+- Translucent sticky notes across the editable Canvas, replay/export rendering,
+  and Spatial view
+- Spatial Post-It creation that stays in 3D, selects the new card, and keeps
+  floating Spatial controls clear of the drawing rail
+- Images, eraser, selection, undo, and redo
 - IndexedDB autosave with portable JSON project files and PNG export
 - Branded PNG exports with a visible live-site link and scannable return QR code
 - Export footers include the active theme logo or mark and size the return QR to
@@ -29,8 +33,8 @@ A local-first spatial thinking surface for touch displays, classrooms, studios, 
 - Collapsible right-hand board settings panel
 - Full-viewport responsive layouts for compact landscape, tablet portrait, and
   portrait-oriented shared displays
-- One global, persisted glass-overlay opacity control with a quick reset; the
-  canvas remains visibly present beneath desktop tools and Settings
+- One global, persisted glass-overlay opacity control with a quick reset;
+  header and Settings glass stay especially light so the canvas remains visible
 - QR board handoff with one-use, encrypted peer-to-peer transfer
 - Mobile receiving preview with Save Project and Open in CoLab Board actions
 - Personal-device-to-board intake for CoLab projects and images using a short

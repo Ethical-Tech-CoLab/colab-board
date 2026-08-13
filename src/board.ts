@@ -237,12 +237,11 @@ export function getItemBounds(item: BoardItem): {
   }
 }
 
-export function placeItemsAtCenter(
+export function getItemsCenter(
   items: BoardItem[],
-  center: { x: number; y: number },
-  now = Date.now(),
-): BoardItem[] {
-  if (items.length === 0) return []
+  fallback = { x: 0, y: 0 },
+): { x: number; y: number } {
+  if (items.length === 0) return fallback
   const bounds = items.map(getItemBounds)
   const left = Math.min(...bounds.map((itemBounds) => itemBounds.x))
   const top = Math.min(...bounds.map((itemBounds) => itemBounds.y))
@@ -252,8 +251,18 @@ export function placeItemsAtCenter(
   const bottom = Math.max(
     ...bounds.map((itemBounds) => itemBounds.y + itemBounds.height),
   )
-  const offsetX = center.x - (left + right) / 2
-  const offsetY = center.y - (top + bottom) / 2
+  return { x: (left + right) / 2, y: (top + bottom) / 2 }
+}
+
+export function placeItemsAtCenter(
+  items: BoardItem[],
+  center: { x: number; y: number },
+  now = Date.now(),
+): BoardItem[] {
+  if (items.length === 0) return []
+  const sourceCenter = getItemsCenter(items)
+  const offsetX = center.x - sourceCenter.x
+  const offsetY = center.y - sourceCenter.y
 
   return items.map((item, index) => {
     const base = {

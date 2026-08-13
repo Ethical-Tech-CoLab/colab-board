@@ -13,11 +13,13 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import {
   getItemBounds,
+  getItemsCenter,
   getSpatialTransform,
   sparkleOffset,
   sparkleTrailHue,
 } from './board'
 import type { CanvasBrandTokens } from './branding'
+import { NOTE_SURFACE_OPACITY } from './noteAppearance'
 import type {
   BoardDocument,
   BoardItem,
@@ -165,6 +167,7 @@ function createNoteTexture(note: NoteItem): THREE.CanvasTexture {
   const context = canvas.getContext('2d')
   if (!context) return new THREE.CanvasTexture(canvas)
 
+  context.globalAlpha = NOTE_SURFACE_OPACITY
   context.fillStyle = note.color
   context.fillRect(0, 0, canvas.width, canvas.height)
   const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height)
@@ -172,6 +175,7 @@ function createNoteTexture(note: NoteItem): THREE.CanvasTexture {
   gradient.addColorStop(1, 'rgba(23,16,32,0.08)')
   context.fillStyle = gradient
   context.fillRect(0, 0, canvas.width, canvas.height)
+  context.globalAlpha = 1
   context.fillStyle = '#171020'
   context.font = '600 48px "Space Mono", monospace'
   context.textBaseline = 'top'
@@ -346,16 +350,19 @@ function createSpatialItem(
       new THREE.BoxGeometry(width, height, 0.075),
       new THREE.MeshStandardMaterial({
         color: item.color,
+        depthWrite: false,
         roughness: 0.72,
         metalness: 0,
+        opacity: NOTE_SURFACE_OPACITY * 0.22,
+        transparent: true,
       }),
     )
-    body.castShadow = true
     body.receiveShadow = true
     group.add(body)
     const face = new THREE.Mesh(
       new THREE.PlaneGeometry(width * 0.985, height * 0.985),
       new THREE.MeshBasicMaterial({
+        depthWrite: false,
         map: createNoteTexture(item),
         transparent: true,
       }),
@@ -407,16 +414,6 @@ function applySpatialTransform(
   )
   group.scale.setScalar(spatial.scale)
   group.userData.baseZ = baseZ
-}
-
-function boardCenter(items: BoardItem[]): { x: number; y: number } {
-  if (items.length === 0) return { x: 0, y: 0 }
-  const bounds = items.map(getItemBounds)
-  const left = Math.min(...bounds.map((value) => value.x))
-  const top = Math.min(...bounds.map((value) => value.y))
-  const right = Math.max(...bounds.map((value) => value.x + value.width))
-  const bottom = Math.max(...bounds.map((value) => value.y + value.height))
-  return { x: (left + right) / 2, y: (top + bottom) / 2 }
 }
 
 function createStars(accentColor: string): THREE.Points {
@@ -695,7 +692,7 @@ export default function SpatialBoard({
       disposeObject(child)
     }
 
-    const center = boardCenter(boardDocument.items)
+    const center = getItemsCenter(boardDocument.items)
     boardDocument.items.forEach((item, index) => {
       runtime.content.add(createSpatialItem(item, center, index))
     })

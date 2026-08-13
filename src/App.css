@@ -409,7 +409,7 @@
 
 .perspective-guide-picker {
   top: calc(var(--topbar-height) + 128px);
-  left: 20px;
+  left: 188px;
   display: flex;
   gap: 3px;
   padding: 4px;
@@ -444,7 +444,7 @@
 
 .spatial-badge {
   top: calc(var(--topbar-height) + 74px);
-  left: 20px;
+  left: 188px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -790,7 +790,13 @@
   transform-origin: top left;
   border: 1px solid rgba(68, 59, 31, 0.09);
   border-radius: 10px 10px 12px 3px;
+  background: color-mix(
+    in srgb,
+    var(--note-color) var(--note-surface-opacity),
+    transparent
+  );
   box-shadow: 0 12px 26px rgba(44, 46, 35, 0.16);
+  backdrop-filter: blur(5px);
   overflow: hidden;
 }
 
@@ -3678,7 +3684,7 @@ kbd {
 }
 
 .topbar {
-  background: var(--brand-glass);
+  background: color-mix(in srgb, var(--brand-glass) 78%, transparent);
   border-color: var(--brand-border);
   box-shadow: 0 4px 20px var(--brand-shadow-color);
 }
@@ -3767,6 +3773,10 @@ kbd {
   border-color: var(--brand-border);
   background: var(--brand-panel-glass);
   box-shadow: 0 16px 42px var(--brand-shadow-color);
+}
+
+.settings-panel {
+  background: color-mix(in srgb, var(--brand-panel-glass) 78%, transparent);
 }
 
 .board-menu hr,

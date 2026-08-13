@@ -3,6 +3,7 @@ import {
   applyItemEvent,
   createBoard,
   getAmbientReplayCamera,
+  getItemsCenter,
   getReplayDuration,
   getReplayFade,
   getReplayTimelineSinceLastClear,
@@ -152,6 +153,14 @@ describe('board document events', () => {
     expect(placed[0]).not.toEqual(note)
     expect(note.x).toBe(20)
     expect(stroke.points[0]).toEqual({ x: 0, y: 0, pressure: 0.5, t: 0 })
+  })
+
+  it('finds the visual center of mixed board items', () => {
+    expect(getItemsCenter([note, stroke])).toEqual({
+      x: 128.75,
+      y: 101.75,
+    })
+    expect(getItemsCenter([], { x: 12, y: 34 })).toEqual({ x: 12, y: 34 })
   })
 
   it('normalizes persistent spatial transforms to usable limits', () => {

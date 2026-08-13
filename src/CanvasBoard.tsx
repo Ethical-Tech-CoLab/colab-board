@@ -4,6 +4,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import { GripHorizontal, X } from 'lucide-react'
@@ -14,6 +15,7 @@ import {
   strokeAsEvent,
 } from './board'
 import type { CanvasBrandTokens } from './branding'
+import { NOTE_SURFACE_OPACITY_PERCENT } from './noteAppearance'
 import { drawScene, type ImageCache } from './render'
 import {
   getPenButtonAction,
@@ -140,10 +142,11 @@ function EditableNote({
       style={{
         width: item.width,
         height: item.height,
-        backgroundColor: item.color,
+        '--note-color': item.color,
+        '--note-surface-opacity': NOTE_SURFACE_OPACITY_PERCENT,
         transform: `translate(${position.x * camera.scale + camera.x}px, ${position.y * camera.scale + camera.y}px) scale(${camera.scale})`,
         pointerEvents: active ? 'auto' : 'none',
-      }}
+      } as CSSProperties}
       onPointerDown={(event) => {
         event.stopPropagation()
         onSelect()

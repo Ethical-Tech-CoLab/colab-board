@@ -72,9 +72,11 @@ import {
   applyItemEvent,
   createBoard,
   createId,
+  createNote,
   fitImage,
-  getSpatialTransform,
   getItemBounds,
+  getItemsCenter,
+  getSpatialTransform,
   isBoardDocument,
   placeItemsAtCenter,
   withSpatialTransform,
@@ -666,6 +668,23 @@ function App() {
     scheduleIdle()
   }, [scheduleIdle])
 
+  const addNoteInSpatialView = useCallback(() => {
+    const center = getItemsCenter(board.items, {
+      x: (window.innerWidth / 2 - camera.x) / camera.scale,
+      y: ((window.innerHeight - 76) / 2 - camera.y) / camera.scale,
+    })
+    const note = createNote(
+      center.x - 120,
+      center.y - 88,
+      activeTheme.noteColor,
+    )
+    addItem(note)
+    setSpatialPreview(null)
+    setSelectedId(note.id)
+    setTool('select')
+    markActivity()
+  }, [activeTheme.noteColor, addItem, board.items, camera, markActivity])
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (takeBoard) return
@@ -723,6 +742,10 @@ function App() {
       }
       const nextTool = shortcut[event.key.toLowerCase()]
       if (nextTool) {
+        if (nextTool === 'note' && preferences.sceneMode === 'spatial') {
+          addNoteInSpatialView()
+          return
+        }
         setTool(nextTool)
         setSpatialPreview(null)
         setPreferences((current) => ({ ...current, sceneMode: 'canvas' }))
@@ -732,6 +755,7 @@ function App() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [
+    addNoteInSpatialView,
     board.items,
     deleteItem,
     preferences.sceneMode,
@@ -1194,6 +1218,10 @@ function App() {
               aria-label={`${label} (${shortcut})`}
               title={`${label} · ${shortcut}`}
               onClick={() => {
+                if (id === 'note' && preferences.sceneMode === 'spatial') {
+                  addNoteInSpatialView()
+                  return
+                }
                 setSpatialPreview(null)
                 setPreferences((current) => ({
                   ...current,
