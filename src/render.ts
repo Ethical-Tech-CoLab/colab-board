@@ -15,6 +15,7 @@ import type {
 export type ImageCache = Map<string, HTMLImageElement>
 
 interface DrawOptions {
+  clear?: boolean
   background?: boolean
   grid?: boolean
   notes?: boolean
@@ -308,7 +309,7 @@ export function drawScene(
     selection: '#22745d',
     imagePlaceholder: '#e9ede6',
   }
-  context.clearRect(0, 0, width, height)
+  if (options.clear !== false) context.clearRect(0, 0, width, height)
   if (options.background !== false) {
     context.fillStyle = theme.background
     context.fillRect(0, 0, width, height)

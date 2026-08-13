@@ -12,6 +12,21 @@ export type ScreensaverMode =
   | 'galaxy'
   | 'aurora'
   | 'constellation'
+  | 'terminal'
+  | 'snake'
+export type ReplayStyle =
+  | 'exact'
+  | 'accelerated'
+  | 'artistic'
+  | 'ghosts'
+  | 'evolution'
+export type ReplayEndEffect =
+  | 'fade-white'
+  | 'fade-black'
+  | 'particles'
+  | 'blueprint'
+  | 'glitch'
+  | 'evaporate'
 export type BrandThemeId =
   | 'ethical-tech'
   | 'studio'
@@ -21,6 +36,7 @@ export type BrandThemeId =
   | 'custom'
 export type InkStyle = 'solid' | 'sparkle'
 export type TouchMode = 'pan' | 'draw'
+export type DialMode = 'zoom' | 'ink-size'
 export type SceneMode = 'canvas' | 'spatial'
 export type PerspectiveGuide = 'none' | 'grid' | 'one-point' | 'two-point'
 
@@ -126,12 +142,15 @@ export interface Preferences {
   strokeWidth: number
   idleMinutes: number
   screensaverMode: ScreensaverMode
+  replayStyle: ReplayStyle
+  replayEndEffect: ReplayEndEffect
   brandTheme: BrandThemeId
   sceneMode: SceneMode
   perspectiveGuide: PerspectiveGuide
   inkStyle: InkStyle
   overlayOpacity: number
   touchMode: TouchMode
+  dialMode: DialMode
 }
 
 export type SaveState = 'loading' | 'saving' | 'saved' | 'error'

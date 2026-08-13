@@ -1,10 +1,10 @@
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
-  type WheelEvent as ReactWheelEvent,
 } from 'react'
 import { GripHorizontal, X } from 'lucide-react'
 import {
@@ -15,10 +15,15 @@ import {
 } from './board'
 import type { CanvasBrandTokens } from './branding'
 import { drawScene, type ImageCache } from './render'
+import {
+  getPenButtonAction,
+  getPointerPressure,
+} from './surfacePointer'
 import type {
   BoardDocument,
   BoardItem,
   Camera,
+  DialMode,
   ImageItem,
   InkStyle,
   NoteItem,
@@ -37,6 +42,7 @@ interface CanvasBoardProps {
   canvasTheme: CanvasBrandTokens
   noteColor: string
   touchMode: 'pan' | 'draw'
+  dialMode: DialMode
   selectedId: string | null
   onAddItem: (item: BoardItem, eventAt?: number) => void
   onUpdateItem: (item: BoardItem) => void
@@ -45,6 +51,7 @@ interface CanvasBoardProps {
   onCameraSettled: (camera: Camera) => void
   onSelectionChange: (id: string | null) => void
   onFilesDropped: (files: FileList, point: { x: number; y: number }) => void
+  onStrokeWidthDelta: (delta: number) => void
   onActivity: () => void
 }
 
@@ -187,6 +194,7 @@ export default function CanvasBoard({
   canvasTheme,
   noteColor,
   touchMode,
+  dialMode,
   selectedId,
   onAddItem,
   onUpdateItem,
@@ -195,6 +203,7 @@ export default function CanvasBoard({
   onCameraSettled,
   onSelectionChange,
   onFilesDropped,
+  onStrokeWidthDelta,
   onActivity,
 }: CanvasBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -348,7 +357,12 @@ export default function CanvasBoard({
   }
 
   const eraseAt = (x: number, y: number) => {
-    const hit = hitTest(document.items, x, y, 12 / cameraRef.current.scale)
+    const hit = hitTest(
+      document.items,
+      x,
+      y,
+      Math.max(12, strokeWidth * 1.8) / cameraRef.current.scale,
+    )
     if (hit && !erasedIds.current.has(hit.id)) {
       erasedIds.current.add(hit.id)
       onDeleteItem(hit.id)
@@ -357,6 +371,8 @@ export default function CanvasBoard({
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLElement>) => {
     onActivity()
+    const penAction = getPenButtonAction(event)
+    if (event.pointerType === 'pen' && penAction === 'none') return
     event.currentTarget.setPointerCapture(event.pointerId)
     pointers.current.set(event.pointerId, {
       x: event.clientX,
@@ -372,11 +388,18 @@ export default function CanvasBoard({
     }
 
     const point = pointFromClient(event.clientX, event.clientY)
+    if (penAction === 'eraser') {
+      eraseInteraction.current = event.pointerId
+      erasedIds.current.clear()
+      eraseAt(point.x, point.y)
+      return
+    }
     const shouldPan =
       tool === 'pan' ||
       spacePressed ||
       event.button === 1 ||
       event.button === 2 ||
+      penAction === 'barrel' ||
       (event.pointerType === 'touch' && touchMode === 'pan')
 
     if (shouldPan) {
@@ -394,7 +417,7 @@ export default function CanvasBoard({
       const startedPerformance = performance.now()
       const firstPoint = {
         ...point,
-        pressure: event.pressure || 0.5,
+        pressure: getPointerPressure(event),
         t: 0,
       }
       drawInteraction.current = {
@@ -514,7 +537,7 @@ export default function CanvasBoard({
     ]
     const newPoints = nativeEvents.map((nativeEvent) => ({
       ...pointFromClient(nativeEvent.clientX, nativeEvent.clientY),
-      pressure: nativeEvent.pressure || 0.5,
+      pressure: getPointerPressure(nativeEvent),
       t: Math.max(0, nativeEvent.timeStamp - interaction.startedPerformance),
     }))
     interaction.points.push(...newPoints)
@@ -584,26 +607,52 @@ export default function CanvasBoard({
     }
   }
 
-  const handleWheel = (event: ReactWheelEvent<HTMLCanvasElement>) => {
-    event.preventDefault()
-    onActivity()
-    const bounds = containerRef.current?.getBoundingClientRect()
-    const x = event.clientX - (bounds?.left ?? 0)
-    const y = event.clientY - (bounds?.top ?? 0)
-    const current = cameraRef.current
-    const nextScale = clampScale(current.scale * Math.exp(-event.deltaY * 0.001))
-    const next = {
-      scale: nextScale,
-      x: x - ((x - current.x) / current.scale) * nextScale,
-      y: y - ((y - current.y) / current.scale) * nextScale,
-    }
-    onCameraChange(next)
-    window.clearTimeout(wheelTimer.current)
-    wheelTimer.current = window.setTimeout(
-      () => onCameraSettled(cameraRef.current),
-      180,
-    )
-  }
+  const handleWheel = useCallback(
+    (event: WheelEvent) => {
+      event.preventDefault()
+      onActivity()
+      if (
+        dialMode === 'ink-size' &&
+        (tool === 'pen' || tool === 'highlighter' || tool === 'eraser') &&
+        !event.ctrlKey
+      ) {
+        const rotation = event.deltaY || event.deltaX
+        if (rotation !== 0) onStrokeWidthDelta(rotation < 0 ? 1 : -1)
+        return
+      }
+      const bounds = containerRef.current?.getBoundingClientRect()
+      const x = event.clientX - (bounds?.left ?? 0)
+      const y = event.clientY - (bounds?.top ?? 0)
+      const current = cameraRef.current
+      const nextScale = clampScale(current.scale * Math.exp(-event.deltaY * 0.001))
+      const next = {
+        scale: nextScale,
+        x: x - ((x - current.x) / current.scale) * nextScale,
+        y: y - ((y - current.y) / current.scale) * nextScale,
+      }
+      onCameraChange(next)
+      window.clearTimeout(wheelTimer.current)
+      wheelTimer.current = window.setTimeout(
+        () => onCameraSettled(cameraRef.current),
+        180,
+      )
+    },
+    [
+      dialMode,
+      onActivity,
+      onCameraChange,
+      onCameraSettled,
+      onStrokeWidthDelta,
+      tool,
+    ],
+  )
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    canvas.addEventListener('wheel', handleWheel, { passive: false })
+    return () => canvas.removeEventListener('wheel', handleWheel)
+  }, [handleWheel])
 
   const cursor =
     tool === 'pan' || spacePressed
@@ -619,23 +668,50 @@ export default function CanvasBoard({
       ref={containerRef}
       className={`canvas-viewport ${cursor}`}
       onPointerDownCapture={(event) => {
-        if (event.pointerType !== 'touch' || touchMode !== 'pan') return
+        const penAction = getPenButtonAction(event)
+        const capturesTouch =
+          event.pointerType === 'touch' && touchMode === 'pan'
+        const capturesPen =
+          penAction === 'eraser' || penAction === 'barrel'
+        if (!capturesTouch && !capturesPen) return
         handlePointerDown(event)
+        event.preventDefault()
         event.stopPropagation()
       }}
       onPointerMoveCapture={(event) => {
-        if (event.pointerType !== 'touch' || touchMode !== 'pan') return
+        const capturesTouch =
+          event.pointerType === 'touch' && touchMode === 'pan'
+        const capturesPen =
+          event.pointerType === 'pen' &&
+          (eraseInteraction.current === event.pointerId ||
+            panInteraction.current?.pointerId === event.pointerId)
+        if (!capturesTouch && !capturesPen) return
         handlePointerMove(event)
+        event.preventDefault()
         event.stopPropagation()
       }}
       onPointerUpCapture={(event) => {
-        if (event.pointerType !== 'touch' || touchMode !== 'pan') return
+        const capturesTouch =
+          event.pointerType === 'touch' && touchMode === 'pan'
+        const capturesPen =
+          event.pointerType === 'pen' &&
+          (eraseInteraction.current === event.pointerId ||
+            panInteraction.current?.pointerId === event.pointerId)
+        if (!capturesTouch && !capturesPen) return
         finishPointer(event)
+        event.preventDefault()
         event.stopPropagation()
       }}
       onPointerCancelCapture={(event) => {
-        if (event.pointerType !== 'touch' || touchMode !== 'pan') return
+        const capturesTouch =
+          event.pointerType === 'touch' && touchMode === 'pan'
+        const capturesPen =
+          event.pointerType === 'pen' &&
+          (eraseInteraction.current === event.pointerId ||
+            panInteraction.current?.pointerId === event.pointerId)
+        if (!capturesTouch && !capturesPen) return
         finishPointer(event)
+        event.preventDefault()
         event.stopPropagation()
       }}
       onContextMenu={(event) => event.preventDefault()}
@@ -660,7 +736,6 @@ export default function CanvasBoard({
         onPointerMove={handlePointerMove}
         onPointerUp={finishPointer}
         onPointerCancel={finishPointer}
-        onWheel={handleWheel}
         onDoubleClick={(event) => {
           if (tool !== 'select') return
           const point = pointFromClient(event.clientX, event.clientY)

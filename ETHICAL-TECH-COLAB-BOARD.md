@@ -80,11 +80,10 @@ Replay end effects:
 - HTML5
 - TypeScript
 - Three.js
-- WebGPU
 - IndexedDB
 - Progressive Web App
-- File System Access API
-- WebHID (optional)
+- Pointer Events
+- WebRTC / PeerJS
 
 ---
 
@@ -278,38 +277,46 @@ Acceptance criteria:
 - Generated themes survive reload, can be exported/imported, and never alter
   board content.
 
-## Recommended Next Releases — reviewed August 2026
+## Active Priorities — v0.12
 
-### P0 — v0.11 Board editing essentials
+### Deferred P0 — board editing complexity
 
-Prioritize day-to-day whiteboard ergonomics before adding more infrastructure:
+Lasso, multi-select, grouping, locking, and advanced object transforms remain
+valuable, but are explicitly deferred. The near-term product should preserve a
+simple shared-whiteboard experience rather than make every object editable
+through a dense design-tool model.
 
-- Lasso and multi-select across ink, notes, and images.
-- Move, resize, duplicate, copy/paste, group, lock, and layer selected objects.
-- Touch-friendly selection handles that coexist with Surface-style canvas grab.
-- Preserve every transform through undo/redo, autosave, replay, project export,
-  and spatial view.
+### Completed P1 — Replay Studio and screensaver pack
 
-This is the highest-value next release because the board can create rich
-content, but editing and reorganizing several ideas is still slower than
-creating them.
+- Exact, Accelerated, Artistic Camera, Ghost Trails, and Infinite Evolution
+  treatments use the existing local timeline and retain scrubbing and speed
+  controls.
+- Fade-to-white/black, particle dissolve, blueprint burnoff, digital glitch,
+  and ink evaporation endings prevent an abrupt replay finish.
+- WarGames Terminal follows the existing Ethical Tech CoLab War-Games
+  repository's worn beige monitor, phosphor-green CRT, scanline glass, flicker,
+  refresh roll, monospace hierarchy, and restrained machine voice.
+- Retro Snake supplies a contrasting continuously moving arcade scene.
 
-### P1 — v0.12 Replay Studio and screensaver pack
+### Completed P2 — Surface hardware and lightweight live boards
 
-- Add Exact, Accelerated, Artistic, Ghost Trails, and Infinite Evolution replay
-  treatments using the existing timeline.
-- Add selectable fade-to-white/black, particle dissolve, blueprint burnoff,
-  digital glitch, and ink evaporation endings.
-- Ship two contrasting moving screensavers from the original library first:
-  WarGames Terminal and Retro Snake.
+- Surface Pen pressure remains native. The rear eraser temporarily erases
+  regardless of the toolbar tool, the barrel button moves the canvas without
+  drawing, pen hover makes no marks, and pen input remains separate from
+  one- and two-finger canvas gestures.
+- Surface Dial rotation uses browser wheel events and can control zoom or ink
+  size. This avoids unverified WebHID report mappings; the Windows-managed pen
+  top button is likewise not exposed to browser applications.
+- Live boards are explicit opt-in peer sessions. A host shares an
+  eight-character code, sends the initial board, and relays later snapshots over
+  encrypted WebRTC. Local-only remains the default.
+- Live synchronization intentionally uses latest-received snapshot semantics.
+  The UI warns that simultaneous conflicting edits can replace one another.
 
-This extends the product's signature replay experience without introducing new
-data or hosting requirements.
+### Lower-priority follow-ons
 
-### P2 — hardware and live collaboration experiments
-
-- Prototype Surface Dial/WebHID only after confirming access to representative
-  hardware and browser support.
-- Defer multi-user peer-to-peer collaboration until the board editing model and
-  transfer state machine are hardened; collaboration has the largest
-  reliability, conflict-resolution, and accessibility cost.
+- Revisit a small, touch-first subset of multi-object editing after observing
+  real workshop use.
+- Add Puzzle Explosion and Drawing Explosion screensavers.
+- Add conflict-aware live collaboration only if lightweight peer sessions prove
+  useful enough to justify CRDT and presence complexity.

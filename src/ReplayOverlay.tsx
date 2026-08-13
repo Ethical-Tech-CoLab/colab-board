@@ -15,12 +15,19 @@ import {
 } from './board'
 import type { BrandTheme } from './branding'
 import { drawScene, type ImageCache } from './render'
-import type { BoardDocument, ScreensaverMode } from './types'
+import type {
+  BoardDocument,
+  ReplayEndEffect,
+  ReplayStyle,
+  ScreensaverMode,
+} from './types'
 
 interface ReplayOverlayProps {
   document: BoardDocument
   mode: ScreensaverMode
   autoLoop: boolean
+  replayStyle: ReplayStyle
+  endEffect: ReplayEndEffect
   theme: BrandTheme
   onClose: () => void
 }
@@ -29,6 +36,8 @@ export default function ReplayOverlay({
   document,
   mode,
   autoLoop,
+  replayStyle,
+  endEffect,
   theme,
   onClose,
 }: ReplayOverlayProps) {
@@ -39,7 +48,13 @@ export default function ReplayOverlay({
   const elapsedRef = useRef(0)
   const [elapsed, setElapsed] = useState(0)
   const [playing, setPlaying] = useState(true)
-  const [speed, setSpeed] = useState(autoLoop ? 2 : 1)
+  const [speed, setSpeed] = useState(
+    replayStyle === 'accelerated'
+      ? 4
+      : autoLoop && replayStyle !== 'exact' && replayStyle !== 'evolution'
+        ? 2
+        : 1,
+  )
   const [size, setSize] = useState({ width: innerWidth, height: innerHeight })
   const [imageRevision, setImageRevision] = useState(0)
 
@@ -86,7 +101,8 @@ export default function ReplayOverlay({
             items: document.timeline.length === 0 ? document.items : [],
             camera: { x: 0, y: 0, scale: 1 },
           }
-    const replayCamera = autoLoop
+    const replayCamera =
+      replayStyle === 'artistic' || replayStyle === 'evolution'
       ? getAmbientReplayCamera(frame.camera, elapsed, size)
       : frame.camera
     drawScene(
@@ -103,6 +119,36 @@ export default function ReplayOverlay({
         onImageLoad: () => setImageRevision((value) => value + 1),
       },
     )
+    if (replayStyle === 'ghosts' && replayTimeline.length > 0) {
+      for (const [offset, alpha] of [
+        [sourceDuration * 0.025, 0.13],
+        [sourceDuration * 0.05, 0.07],
+      ] as const) {
+        const ghost = replayAt(
+          replayTimeline,
+          Math.max(0, sourceElapsed - offset),
+        )
+        context.save()
+        context.globalAlpha = alpha
+        context.filter = 'blur(0.6px) saturate(1.35)'
+        drawScene(
+          context,
+          size.width,
+          size.height,
+          ghost.items,
+          replayCamera,
+          imageCache.current,
+          {
+            clear: false,
+            background: false,
+            grid: false,
+            notes: true,
+            theme: theme.canvas,
+          },
+        )
+        context.restore()
+      }
+    }
   }, [
     autoLoop,
     document.items,
@@ -113,6 +159,7 @@ export default function ReplayOverlay({
     mode,
     playbackDuration,
     replayTimeline,
+    replayStyle,
     size,
     sourceDuration,
     theme.canvas,
@@ -163,14 +210,27 @@ export default function ReplayOverlay({
   }
 
   const fade = getReplayFade(elapsed, playbackDuration, fadeDuration)
+  const ending = elapsed > playbackDuration
+  const replayLabel =
+    replayStyle === 'ghosts'
+      ? 'Ghost trails'
+      : replayStyle === 'evolution'
+        ? 'Infinite evolution'
+        : `${replayStyle} replay`
 
   return (
     <section
-      className={`replay-overlay mode-${mode}`}
+      className={`replay-overlay mode-${mode} style-${replayStyle} end-${endEffect}${
+        ending ? ' is-ending' : ''
+      }`}
       aria-label={`${mode} screensaver`}
+      style={{ '--replay-fade': fade } as React.CSSProperties}
     >
       {mode === 'replay' ? (
-        <canvas ref={canvasRef} style={{ opacity: fade }} />
+        <>
+          <canvas ref={canvasRef} />
+          <div className="replay-end-layer" aria-hidden="true" />
+        </>
       ) : mode === 'drift' ? (
         <div className="drift-scene">
           <div className="drift-title">{document.title}</div>
@@ -230,7 +290,7 @@ export default function ReplayOverlay({
           ))}
           <div className="aurora-stars" />
         </div>
-      ) : (
+      ) : mode === 'constellation' ? (
         <div className="constellation-scene">
           <div className="constellation-title">
             <span>Connected thinking</span>
@@ -268,6 +328,85 @@ export default function ReplayOverlay({
             />
           ))}
         </div>
+      ) : mode === 'terminal' ? (
+        <div className="wargames-scene">
+          <div className="wg-monitor">
+            <div className="wg-crt">
+              <div className="wg-statusbar">
+                <div className="wg-defcon">
+                  <span>DEFCON</span>
+                  <strong>5</strong>
+                  <i />
+                  <i />
+                  <i />
+                  <i />
+                  <i />
+                </div>
+                <span>WOPR // COLAB SIMULATION</span>
+              </div>
+              <div className="wg-terminal">
+                <div className="wg-output">
+                  {[
+                    'WOPR SYSTEM ONLINE',
+                    `SESSION ${document.id.slice(-8).toUpperCase()}`,
+                    `OBJECTS ${document.items.length.toString().padStart(3, '0')}  EVENTS ${document.timeline.length.toString().padStart(3, '0')}`,
+                    'ANALYZING HUMAN / TECHNOLOGY SYSTEMS',
+                    'SEARCHING FOR ETHICAL PATHWAYS',
+                    'SHALL WE PLAY A GAME?',
+                  ].map((line, index) => (
+                    <span
+                      key={line}
+                      className={index === 5 ? 'is-system' : ''}
+                      style={{ '--i': index } as React.CSSProperties}
+                    >
+                      {line}
+                    </span>
+                  ))}
+                </div>
+                <div className="wg-prompt">
+                  <span>&gt;</span>
+                  <i />
+                </div>
+              </div>
+              <div className="wg-refresh" aria-hidden="true" />
+              <div className="wg-flicker" aria-hidden="true" />
+              <div className="wg-scanlines" aria-hidden="true" />
+            </div>
+            <div className="wg-monitor-chin">
+              <span>WOPR // ETC LABS</span>
+              <i />
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="snake-scene">
+          <div className="snake-title">
+            <span>COLAB ARCADE</span>
+            <strong>IDEA SNAKE</strong>
+            <small>{document.items.length} ideas collected</small>
+          </div>
+          <svg viewBox="0 0 1000 700" aria-hidden="true">
+            <path
+              className="snake-track"
+              d="M90 190H820V520H210V330H690V420H370V270H910"
+            />
+            <path
+              className="snake-body"
+              d="M90 190H820V520H210V330H690V420H370V270H910"
+            />
+            {Array.from({ length: 9 }, (_, index) => (
+              <circle
+                key={index}
+                className="snake-food"
+                cx={130 + ((index * 193) % 760)}
+                cy={120 + ((index * 137) % 480)}
+                r={7 + (index % 2) * 3}
+                style={{ '--i': index } as React.CSSProperties}
+              />
+            ))}
+          </svg>
+          <div className="snake-score">SCORE {document.timeline.length * 10}</div>
+        </div>
       )}
 
       <header className="replay-header">
@@ -275,7 +414,13 @@ export default function ReplayOverlay({
           {theme.logoSrc ? <img src={theme.logoSrc} alt="" /> : theme.mark}
         </div>
         <div>
-          <span>{autoLoop ? 'Idle canvas' : 'Session replay'}</span>
+          <span>
+            {mode === 'replay'
+              ? autoLoop
+                ? replayLabel
+                : `Replay Studio · ${replayLabel}`
+              : 'Idle canvas'}
+          </span>
           <strong>{document.title}</strong>
         </div>
         <button type="button" onClick={onClose} aria-label="Exit replay">

@@ -32,6 +32,7 @@ import {
   Play,
   Plus,
   QrCode,
+  RadioTower,
   Redo2,
   RotateCcw,
   Save,
@@ -49,6 +50,9 @@ import {
 } from 'lucide-react'
 import CanvasBoard from './CanvasBoard'
 import DeviceTransferDialog from './DeviceTransferDialog'
+import LiveSessionDialog, {
+  type LiveSessionView,
+} from './LiveSessionDialog'
 import ReplayOverlay from './ReplayOverlay'
 import SpatialInspector from './SpatialInspector'
 import TakeBoardDialog from './TakeBoardDialog'
@@ -78,6 +82,12 @@ import {
 import { loadBoard, saveBoard } from './persistence'
 import { createBrandedPng } from './exportImage'
 import {
+  hostLiveSession,
+  joinLiveSession,
+  type LiveSession,
+  type LiveSessionRole,
+} from './liveSession'
+import {
   clearTransferIntent,
   getTransferIntent,
   type TransferContent,
@@ -88,6 +98,8 @@ import type {
   BrandThemeId,
   Camera,
   Preferences,
+  ReplayEndEffect,
+  ReplayStyle,
   SaveState,
   ScreensaverMode,
   TimelineEvent,
@@ -102,12 +114,15 @@ const DEFAULT_PREFERENCES: Preferences = {
   strokeWidth: 5,
   idleMinutes: 2,
   screensaverMode: 'replay',
+  replayStyle: 'accelerated',
+  replayEndEffect: 'fade-white',
   brandTheme: 'ethical-tech',
   sceneMode: 'canvas',
   perspectiveGuide: 'grid',
   inkStyle: 'solid',
   overlayOpacity: 88,
   touchMode: 'pan',
+  dialMode: 'zoom',
 }
 
 const TOOL_CONFIG: Array<{
@@ -219,7 +234,15 @@ function loadPreferences(): Preferences {
       ? (parsed.perspectiveGuide ?? DEFAULT_PREFERENCES.perspectiveGuide)
       : DEFAULT_PREFERENCES.perspectiveGuide
     const screensaverMode = (
-      ['replay', 'drift', 'galaxy', 'aurora', 'constellation'] as const
+      [
+        'replay',
+        'drift',
+        'galaxy',
+        'aurora',
+        'constellation',
+        'terminal',
+        'snake',
+      ] as const
     ).includes(parsed.screensaverMode ?? 'replay')
       ? (parsed.screensaverMode ?? DEFAULT_PREFERENCES.screensaverMode)
       : DEFAULT_PREFERENCES.screensaverMode
@@ -230,12 +253,33 @@ function loadPreferences(): Preferences {
       sceneMode,
       perspectiveGuide,
       screensaverMode,
+      replayStyle: (
+        ['exact', 'accelerated', 'artistic', 'ghosts', 'evolution'] as const
+      ).includes(parsed.replayStyle ?? 'accelerated')
+        ? (parsed.replayStyle ?? DEFAULT_PREFERENCES.replayStyle)
+        : DEFAULT_PREFERENCES.replayStyle,
+      replayEndEffect: (
+        [
+          'fade-white',
+          'fade-black',
+          'particles',
+          'blueprint',
+          'glitch',
+          'evaporate',
+        ] as const
+      ).includes(parsed.replayEndEffect ?? 'fade-white')
+        ? (parsed.replayEndEffect ?? DEFAULT_PREFERENCES.replayEndEffect)
+        : DEFAULT_PREFERENCES.replayEndEffect,
       inkStyle:
         parsed.inkStyle === 'sparkle'
           ? 'sparkle'
           : DEFAULT_PREFERENCES.inkStyle,
       touchMode:
         parsed.touchMode === 'draw' ? 'draw' : DEFAULT_PREFERENCES.touchMode,
+      dialMode:
+        parsed.dialMode === 'ink-size'
+          ? 'ink-size'
+          : DEFAULT_PREFERENCES.dialMode,
       overlayOpacity:
         typeof parsed.overlayOpacity === 'number'
           ? Math.min(98, Math.max(58, parsed.overlayOpacity))
@@ -270,6 +314,9 @@ function App() {
   const [settingsCollapsed, setSettingsCollapsed] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [themeItOpen, setThemeItOpen] = useState(false)
+  const [liveSessionOpen, setLiveSessionOpen] = useState(false)
+  const [liveSessionState, setLiveSessionState] =
+    useState<LiveSessionView | null>(null)
   const [welcomeDismissed, setWelcomeDismissed] = useState(false)
   const [replay, setReplay] = useState<ReplayState | null>(null)
   const [takeBoard, setTakeBoard] = useState<{
@@ -295,6 +342,10 @@ function App() {
   const importInput = useRef<HTMLInputElement>(null)
   const imageInput = useRef<HTMLInputElement>(null)
   const idleTimer = useRef<number | undefined>(undefined)
+  const liveSessionRef = useRef<LiveSession | null>(null)
+  const liveAttempt = useRef(0)
+  const applyingRemoteBoard = useRef(false)
+  const boardRef = useRef(board)
   const customTheme = useMemo(
     () =>
       customThemeConfig ? createCustomBrandTheme(customThemeConfig) : null,
@@ -322,6 +373,91 @@ function App() {
     },
     [],
   )
+
+  useEffect(() => {
+    boardRef.current = board
+  }, [board])
+
+  useEffect(
+    () => () => {
+      liveSessionRef.current?.close()
+    },
+    [],
+  )
+
+  const startLiveSession = useCallback(
+    (role: LiveSessionRole, code?: string) => {
+      liveSessionRef.current?.close()
+      const attempt = ++liveAttempt.current
+      const options = {
+        onStatus: (status: LiveSessionView['status']) => {
+          if (liveAttempt.current !== attempt) return
+          setLiveSessionState((current) =>
+            current ? { ...current, status, error: '' } : current,
+          )
+        },
+        onDocument: (nextBoard: BoardDocument) => {
+          if (liveAttempt.current !== attempt) return
+          applyingRemoteBoard.current = true
+          past.current = []
+          future.current = []
+          boardRef.current = nextBoard
+          setBoard(nextBoard)
+          setSelectedId(null)
+          setSpatialPreview(null)
+          setWelcomeDismissed(true)
+        },
+        onError: (error: Error) => {
+          if (liveAttempt.current !== attempt) return
+          setLiveSessionState((current) =>
+            current
+              ? { ...current, status: 'error', error: error.message }
+              : current,
+          )
+          notify(error.message, 'error')
+        },
+      }
+
+      try {
+        const session =
+          role === 'host'
+            ? hostLiveSession(boardRef.current, options)
+            : joinLiveSession(code ?? '', options)
+        liveSessionRef.current = session
+        setLiveSessionState({
+          code: session.code,
+          role: session.role,
+          status: 'starting',
+          error: '',
+        })
+      } catch (error: unknown) {
+        liveSessionRef.current = null
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'The live session could not be started.'
+        notify(message, 'error')
+      }
+    },
+    [notify],
+  )
+
+  const disconnectLiveSession = useCallback(() => {
+    liveAttempt.current += 1
+    liveSessionRef.current?.close()
+    liveSessionRef.current = null
+    setLiveSessionState(null)
+    notify('Live board session ended. This board is local again.', 'info')
+  }, [notify])
+
+  useEffect(() => {
+    if (!loaded || !liveSessionRef.current) return
+    if (applyingRemoteBoard.current) {
+      applyingRemoteBoard.current = false
+      return
+    }
+    liveSessionRef.current.publish(board)
+  }, [board, loaded])
 
   useEffect(() => {
     applyBrandTheme(activeTheme)
@@ -487,7 +623,12 @@ function App() {
   const scheduleIdle = useCallback(() => {
     window.clearTimeout(idleTimer.current)
     const modalOpen = Boolean(
-      replay || takeBoard || deviceTransfer || helpOpen || themeItOpen,
+      replay ||
+        takeBoard ||
+        deviceTransfer ||
+        helpOpen ||
+        themeItOpen ||
+        liveSessionOpen,
     )
     if (
       modalOpen ||
@@ -508,6 +649,7 @@ function App() {
     board.items.length,
     deviceTransfer,
     helpOpen,
+    liveSessionOpen,
     preferences.idleMinutes,
     preferences.screensaverMode,
     replay,
@@ -995,6 +1137,18 @@ function App() {
                 >
                   <Send /> Send to a board
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLiveSessionOpen(true)
+                    setMenuOpen(false)
+                  }}
+                >
+                  <RadioTower />
+                  {liveSessionState
+                    ? `Live board · ${liveSessionState.code}`
+                    : 'Start or join live board'}
+                </button>
                 <hr />
                 <button
                   type="button"
@@ -1078,6 +1232,7 @@ function App() {
               canvasTheme={activeTheme.canvas}
               noteColor={activeTheme.noteColor}
               touchMode={preferences.touchMode}
+              dialMode={preferences.dialMode}
               selectedId={selectedId}
               onAddItem={addItem}
               onUpdateItem={updateItem}
@@ -1086,6 +1241,15 @@ function App() {
               onCameraSettled={recordCamera}
               onSelectionChange={setSelectedId}
               onFilesDropped={addImageFiles}
+              onStrokeWidthDelta={(delta) =>
+                setPreferences((current) => ({
+                  ...current,
+                  strokeWidth: Math.min(
+                    30,
+                    Math.max(1, current.strokeWidth + delta),
+                  ),
+                }))
+              }
               onActivity={markActivity}
             />
           ) : (
@@ -1496,6 +1660,54 @@ function App() {
                 Surface mode keeps fingers for moving and pinch zoom while a pen
                 draws.
               </p>
+              <div className="surface-pen-support">
+                <Pencil />
+                <span>
+                  <strong>Surface Pen ready</strong>
+                  Pressure controls ink. Flip to the rear eraser to erase with any
+                  selected tool; hold the barrel button to move the canvas.
+                </span>
+              </div>
+            </div>
+
+            <div className="settings-section">
+              <span>Wheel / Surface Dial</span>
+              <div className="scene-options">
+                <button
+                  type="button"
+                  className={preferences.dialMode === 'zoom' ? 'is-active' : ''}
+                  onClick={() =>
+                    setPreferences((current) => ({
+                      ...current,
+                      dialMode: 'zoom',
+                    }))
+                  }
+                >
+                  <ZoomIn />
+                  <span>Zoom canvas</span>
+                  {preferences.dialMode === 'zoom' && <Check />}
+                </button>
+                <button
+                  type="button"
+                  className={
+                    preferences.dialMode === 'ink-size' ? 'is-active' : ''
+                  }
+                  onClick={() =>
+                    setPreferences((current) => ({
+                      ...current,
+                      dialMode: 'ink-size',
+                    }))
+                  }
+                >
+                  <Pencil />
+                  <span>Adjust ink size</span>
+                  {preferences.dialMode === 'ink-size' && <Check />}
+                </button>
+              </div>
+              <p className="settings-hint">
+                Surface Dial rotation arrives as wheel input in the browser. In
+                ink-size mode, hold Ctrl while rotating to zoom.
+              </p>
             </div>
 
             <div className="settings-section">
@@ -1508,6 +1720,8 @@ function App() {
                     ['galaxy', 'CoLab galaxy', ZoomIn],
                     ['aurora', 'Aurora flow', Waves],
                     ['constellation', 'Idea constellation', Orbit],
+                    ['terminal', 'WarGames terminal', Menu],
+                    ['snake', 'Retro snake', RotateCcw],
                   ] as const
                 ).map(([mode, label, Icon]) => (
                   <button
@@ -1529,6 +1743,48 @@ function App() {
                   </button>
                 ))}
               </div>
+              {preferences.screensaverMode === 'replay' && (
+                <div className="replay-studio-settings">
+                  <span>Replay Studio</span>
+                  <label>
+                    Treatment
+                    <select
+                      value={preferences.replayStyle}
+                      onChange={(event) =>
+                        setPreferences((current) => ({
+                          ...current,
+                          replayStyle: event.target.value as ReplayStyle,
+                        }))
+                      }
+                    >
+                      <option value="exact">Exact replay</option>
+                      <option value="accelerated">Accelerated</option>
+                      <option value="artistic">Artistic camera</option>
+                      <option value="ghosts">Ghost trails</option>
+                      <option value="evolution">Infinite evolution</option>
+                    </select>
+                  </label>
+                  <label>
+                    Ending
+                    <select
+                      value={preferences.replayEndEffect}
+                      onChange={(event) =>
+                        setPreferences((current) => ({
+                          ...current,
+                          replayEndEffect: event.target.value as ReplayEndEffect,
+                        }))
+                      }
+                    >
+                      <option value="fade-white">Fade to white</option>
+                      <option value="fade-black">Fade to black</option>
+                      <option value="particles">Particle dissolve</option>
+                      <option value="blueprint">Blueprint burnoff</option>
+                      <option value="glitch">Digital glitch</option>
+                      <option value="evaporate">Ink evaporation</option>
+                    </select>
+                  </label>
+                </div>
+              )}
               <button
                 className="preview-screensaver"
                 type="button"
@@ -1669,6 +1925,16 @@ function App() {
                 <kbd>Wheel / pinch</kbd>
               </div>
               <div>
+                <Eraser />
+                <span>Surface Pen eraser</span>
+                <kbd>Flip pen</kbd>
+              </div>
+              <div>
+                <RadioTower />
+                <span>Live peer board</span>
+                <kbd>Board menu</kbd>
+              </div>
+              <div>
                 <Box />
                 <span>Spatial depth</span>
                 <kbd>[ / ]</kbd>
@@ -1678,6 +1944,8 @@ function App() {
               Double-click with Select to create a note. Drop images directly
               onto the canvas, then open Spatial view to orbit and shape the
               scene. Your work autosaves only on this device.
+              Surface Pen top-button shortcuts remain managed by Windows and are
+              not exposed to browser apps.
             </p>
           </section>
         </div>
@@ -1716,6 +1984,8 @@ function App() {
           document={board}
           mode={replay.mode}
           autoLoop={replay.autoLoop}
+          replayStyle={preferences.replayStyle}
+          endEffect={preferences.replayEndEffect}
           theme={activeTheme}
           onClose={() => setReplay(null)}
         />
@@ -1759,6 +2029,15 @@ function App() {
           onApply={applyCustomTheme}
           onReset={resetCustomTheme}
           onClose={() => setThemeItOpen(false)}
+        />
+      )}
+      {liveSessionOpen && (
+        <LiveSessionDialog
+          session={liveSessionState}
+          onHost={() => startLiveSession('host')}
+          onJoin={(code) => startLiveSession('join', code)}
+          onDisconnect={disconnectLiveSession}
+          onClose={() => setLiveSessionOpen(false)}
         />
       )}
     </div>

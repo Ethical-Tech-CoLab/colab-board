@@ -4,9 +4,10 @@
 
 A local-first spatial thinking surface for touch displays, classrooms, studios, and collaborative workshops. It runs entirely in the browser and can be hosted on GitHub Pages without a server.
 
-## Current release — v0.10.1
+## Current release — v0.12.0
 
-- Pressure-aware pen and highlighter input
+- Pressure-aware pen and highlighter input with Surface Pen rear-eraser and
+  barrel-button canvas movement
 - Surface-style touch input: one finger grabs the complete canvas, two fingers
   pinch, and a stylus draws; Settings can switch finger input back to drawing
 - Infinite pan-and-zoom canvas with mouse, touch, and pen support
@@ -14,8 +15,13 @@ A local-first spatial thinking surface for touch displays, classrooms, studios, 
 - IndexedDB autosave with portable JSON project files and PNG export
 - Branded PNG exports with a visible live-site link and scannable return QR code
 - Event provenance and animated replay scoped to work after the latest clear
+- Replay Studio with Exact, Accelerated, Artistic Camera, Ghost Trails, and
+  Infinite Evolution treatments plus six selectable ending effects
 - Continuously moving Session Replay, Ink Drift, CoLab Galaxy, Aurora Flow, and
   Idea Constellation screensavers
+- WarGames Terminal, faithfully adapted from the Ethical Tech CoLab
+  [War-Games](https://github.com/Ethical-Tech-CoLab/War-Games) design system,
+  and a moving Retro Snake screensaver
 - Idle detection covers the full application and stays suspended while modal
   transfer, help, or Theme-It workflows are open
 - Collapsible right-hand board settings panel
@@ -27,6 +33,8 @@ A local-first spatial thinking surface for touch displays, classrooms, studios, 
 - Mobile receiving preview with Save Project and Open in CoLab Board actions
 - Personal-device-to-board intake for CoLab projects and images using a short
   code or camera-scanned QR card
+- Explicitly opt-in live peer boards with host/join codes, encrypted WebRTC
+  transport, initial host snapshot, connection status, and local-only default
 - Facilitator preview and explicit accept/reject before incoming content is
   placed near the current view without replacing existing work
 - Installable PWA with an offline application shell
@@ -44,6 +52,8 @@ A local-first spatial thinking surface for touch displays, classrooms, studios, 
 - Persistent spatial transforms for object depth, X/Y tilt, rotation, and scale
   with quick layer actions, reset, keyboard depth nudging, and undo/redo
 - Switchable spatial grid, one-point, and two-point perspective guides
+- Browser-native Surface Dial/wheel preference for canvas zoom or ink-size
+  adjustment, with Ctrl-wheel zoom retained in ink-size mode
 - Streamlined header actions with media insertion kept in the left tool rail
 - Smooth replay fade-out at the end of manual and idle Session Replay
 
@@ -64,6 +74,11 @@ All board content stays on the device unless a user explicitly exports a project
 QR handoff uses the public PeerJS service for ephemeral connection signaling;
 board content itself travels directly between devices over an encrypted WebRTC
 data channel and is not stored by the signaling service.
+
+Live boards use the same signaling and encrypted peer transport. They exchange
+complete board snapshots only while users explicitly keep a session active.
+This first collaboration mode is intentionally lightweight: the latest received
+snapshot wins, so simultaneous conflicting edits can replace one another.
 
 ### QR transfer requirements
 
