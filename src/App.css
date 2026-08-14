@@ -1859,6 +1859,24 @@ kbd {
   background: color-mix(in srgb, var(--brand-warning) 8%, transparent);
 }
 
+.live-diagnostics {
+  display: grid;
+  gap: 3px;
+  margin: 5px 0;
+  padding: 10px 11px;
+  color: var(--brand-muted);
+  font-size: 9px;
+  line-height: 1.45;
+  border: 1px solid var(--brand-border);
+  border-radius: 9px;
+  background: var(--brand-control);
+}
+
+.live-diagnostics strong {
+  color: var(--brand-foreground);
+  font-size: 10px;
+}
+
 .qr-stage {
   position: relative;
   min-height: 280px;

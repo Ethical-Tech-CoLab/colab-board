@@ -46,6 +46,7 @@ interface CanvasBoardProps {
   touchMode: 'pan' | 'draw'
   dialMode: DialMode
   selectedId: string | null
+  remoteDrafts: StrokeItem[]
   onAddItem: (item: BoardItem, eventAt?: number) => void
   onUpdateItem: (item: BoardItem) => void
   onDeleteItem: (id: string) => void
@@ -55,6 +56,7 @@ interface CanvasBoardProps {
   onFilesDropped: (files: FileList, point: { x: number; y: number }) => void
   onStrokeWidthDelta: (delta: number) => void
   onActivity: () => void
+  onDraftChange: (draft: StrokeItem | null) => void
 }
 
 interface CanvasSize {
@@ -199,6 +201,7 @@ export default function CanvasBoard({
   touchMode,
   dialMode,
   selectedId,
+  remoteDrafts,
   onAddItem,
   onUpdateItem,
   onDeleteItem,
@@ -208,6 +211,7 @@ export default function CanvasBoard({
   onFilesDropped,
   onStrokeWidthDelta,
   onActivity,
+  onDraftChange,
 }: CanvasBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -215,6 +219,7 @@ export default function CanvasBoard({
   const cameraRef = useRef(camera)
   const [size, setSize] = useState<CanvasSize>({ width: 1, height: 1, dpr: 1 })
   const [draft, setDraft] = useState<StrokeItem | null>(null)
+  const draftRef = useRef<StrokeItem | null>(null)
   const [previewItem, setPreviewItem] = useState<ImageItem | null>(null)
   const [imageRevision, setImageRevision] = useState(0)
   const [spacePressed, setSpacePressed] = useState(false)
@@ -245,6 +250,14 @@ export default function CanvasBoard({
     worldX: number
     worldY: number
   } | null>(null)
+
+  useEffect(
+    () => () => {
+      draftRef.current = null
+      onDraftChange(null)
+    },
+    [onDraftChange],
+  )
   const eraseInteraction = useRef<number | null>(null)
   const erasedIds = useRef(new Set<string>())
   const wheelTimer = useRef<number | undefined>(undefined)
@@ -308,7 +321,9 @@ export default function CanvasBoard({
       context,
       size.width,
       size.height,
-      draft ? [...items, draft] : items,
+      draft
+        ? [...items, ...remoteDrafts, draft]
+        : [...items, ...remoteDrafts],
       camera,
       imageCache.current,
       {
@@ -327,6 +342,7 @@ export default function CanvasBoard({
     draft,
     imageRevision,
     previewItem,
+    remoteDrafts,
     selectedId,
     size,
   ])
@@ -356,7 +372,9 @@ export default function CanvasBoard({
       worldY: (middleY - currentCamera.y) / currentCamera.scale,
     }
     drawInteraction.current = null
+    draftRef.current = null
     setDraft(null)
+    onDraftChange(null)
   }
 
   const eraseAt = (x: number, y: number) => {
@@ -430,8 +448,8 @@ export default function CanvasBoard({
         points: [firstPoint],
         seed: Math.floor(Math.random() * 0xffffffff),
       }
-      setDraft({
-        id: 'draft',
+      const nextDraft: StrokeItem = {
+        id: `draft-${crypto.randomUUID()}`,
         type: 'stroke',
         points: [firstPoint],
         color,
@@ -444,7 +462,10 @@ export default function CanvasBoard({
           inkStyle === 'sparkle'
             ? drawInteraction.current.seed
             : undefined,
-      })
+      }
+      draftRef.current = nextDraft
+      setDraft(nextDraft)
+      onDraftChange(nextDraft)
       return
     }
 
@@ -544,15 +565,16 @@ export default function CanvasBoard({
       t: Math.max(0, nativeEvent.timeStamp - interaction.startedPerformance),
     }))
     interaction.points.push(...newPoints)
-    setDraft((current) =>
-      current
-        ? {
-            ...current,
-            points: [...interaction.points],
-            duration: interaction.points.at(-1)?.t ?? 0,
-          }
-        : null,
-    )
+    const currentDraft = draftRef.current
+    if (!currentDraft) return
+    const nextDraft = {
+      ...currentDraft,
+      points: [...interaction.points],
+      duration: interaction.points.at(-1)?.t ?? 0,
+    }
+    draftRef.current = nextDraft
+    setDraft(nextDraft)
+    onDraftChange(nextDraft)
   }
 
   const finishPointer = (event: ReactPointerEvent<HTMLElement>) => {
@@ -606,7 +628,9 @@ export default function CanvasBoard({
       }
       onAddItem(item, strokeAsEvent(item).at)
       drawInteraction.current = null
+      draftRef.current = null
       setDraft(null)
+      onDraftChange(null)
     }
   }
 

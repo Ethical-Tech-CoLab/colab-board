@@ -53,6 +53,7 @@ interface SpatialBoardProps {
   accentColor: string
   selectedId: string | null
   previewItem: BoardItem | null
+  remoteDrafts: StrokeItem[]
   guideMode: PerspectiveGuide
   tool: Tool
   color: string
@@ -76,6 +77,7 @@ interface SpatialBoardProps {
   onNoteEditingChange: (editing: boolean) => void
   onSelectionChange: (id: string | null) => void
   onActivity: () => void
+  onDraftChange: (draft: StrokeItem | null) => void
 }
 
 interface SceneRuntime {
@@ -84,6 +86,7 @@ interface SceneRuntime {
   renderer: THREE.WebGLRenderer
   controls: OrbitControls
   content: THREE.Group
+  remoteDrafts: THREE.Group
   guide: THREE.Group | null
   workPlane: THREE.Group | null
   draft: THREE.Group | null
@@ -667,12 +670,29 @@ function showDraft(
   runtime.draft = preview
 }
 
+function showRemoteDrafts(
+  runtime: SceneRuntime,
+  drafts: StrokeItem[],
+  origin: { x: number; y: number },
+) {
+  for (const child of [...runtime.remoteDrafts.children]) {
+    runtime.remoteDrafts.remove(child)
+    disposeObject(child)
+  }
+  drafts.forEach((draft) => {
+    const preview = createSpatialItem(draft, origin)
+    preview.userData.remoteDraft = true
+    runtime.remoteDrafts.add(preview)
+  })
+}
+
 export default function SpatialBoard({
   document: boardDocument,
   canvasTheme,
   accentColor,
   selectedId,
   previewItem,
+  remoteDrafts,
   guideMode,
   tool,
   color,
@@ -692,6 +712,7 @@ export default function SpatialBoard({
   onNoteEditingChange,
   onSelectionChange,
   onActivity,
+  onDraftChange,
 }: SpatialBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const runtimeRef = useRef<SceneRuntime | null>(null)
@@ -720,6 +741,7 @@ export default function SpatialBoard({
     onFilesDropped,
     onStrokeWidthDelta,
     onToolChange,
+    onDraftChange,
   })
   const [error, setError] = useState('')
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
@@ -784,6 +806,7 @@ export default function SpatialBoard({
       onFilesDropped,
       onStrokeWidthDelta,
       onToolChange,
+      onDraftChange,
     }
   }, [
     color,
@@ -795,6 +818,7 @@ export default function SpatialBoard({
     onFilesDropped,
     onStrokeWidthDelta,
     onToolChange,
+    onDraftChange,
     onUpdateItem,
     strokeWidth,
     tool,
@@ -854,13 +878,16 @@ export default function SpatialBoard({
       scene.add(createStars(accentColor))
 
       const content = new THREE.Group()
+      const remoteDraftsGroup = new THREE.Group()
       scene.add(content)
+      scene.add(remoteDraftsGroup)
       runtime = {
         scene,
         camera,
         renderer,
         controls,
         content,
+        remoteDrafts: remoteDraftsGroup,
         guide: null,
         workPlane: null,
         draft: null,
@@ -980,6 +1007,7 @@ export default function SpatialBoard({
             strokeFromInteraction(current),
             getOrigin(),
           )
+          authoringRef.current.onDraftChange(strokeFromInteraction(current))
         })
       }
       const eraseAt = (
@@ -1134,6 +1162,7 @@ export default function SpatialBoard({
             draftFrame = undefined
           }
           clearDraft(sceneRuntime)
+          authoringRef.current.onDraftChange(null)
           interaction = null
           queueMicrotask(() => {
             controls.enabled = true
@@ -1201,6 +1230,7 @@ export default function SpatialBoard({
           draftFrame = undefined
         }
         clearDraft(sceneRuntime)
+        authoringRef.current.onDraftChange(null)
         interaction = null
         controls.enabled = true
       }
@@ -1286,6 +1316,7 @@ export default function SpatialBoard({
 
       return () => {
         renderer.setAnimationLoop(null)
+        authoringRef.current.onDraftChange(null)
         if (draftFrame !== undefined) cancelAnimationFrame(draftFrame)
         renderer.domElement.removeEventListener('pointerdown', pointerDown, true)
         renderer.domElement.removeEventListener('pointermove', pointerMove, true)
@@ -1387,6 +1418,16 @@ export default function SpatialBoard({
       }
     }
   }, [accentColor, boardDocument.items, canvasTheme.background])
+
+  useEffect(() => {
+    const runtime = runtimeRef.current
+    if (!runtime) return
+    showRemoteDrafts(
+      runtime,
+      remoteDrafts,
+      originRef.current ?? { x: 0, y: 0 },
+    )
+  }, [remoteDrafts])
 
   useEffect(() => {
     const runtime = runtimeRef.current

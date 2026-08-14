@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { formatTransferCode, normalizeTransferCode } from './transfer'
 import type {
+  LiveSessionDiagnostics,
   LiveSessionRole,
   LiveSessionStatus,
 } from './liveSession'
@@ -20,6 +21,7 @@ export interface LiveSessionView {
   role: LiveSessionRole
   status: LiveSessionStatus
   error: string
+  diagnostics: LiveSessionDiagnostics
 }
 
 interface LiveSessionDialogProps {
@@ -33,6 +35,7 @@ interface LiveSessionDialogProps {
 function statusCopy(status: LiveSessionStatus, role: LiveSessionRole) {
   if (status === 'starting') return 'Starting secure peer session…'
   if (status === 'connecting') return 'Connecting directly to the other board…'
+  if (status === 'reconnecting') return 'Reconnecting and preserving changes…'
   if (status === 'connected') return 'Live connection active'
   if (status === 'error') return 'Connection needs attention'
   return role === 'host' ? 'Ready for another board' : 'Waiting for host'
@@ -157,7 +160,8 @@ export default function LiveSessionDialog({
                 <LoaderCircle
                   className={
                     session.status === 'starting' ||
-                    session.status === 'connecting'
+                    session.status === 'connecting' ||
+                    session.status === 'reconnecting'
                       ? 'is-spinning'
                       : ''
                   }
@@ -189,14 +193,35 @@ export default function LiveSessionDialog({
               <ShieldCheck />
               <span>
                 <strong>Encrypted peer-to-peer while connected</strong>
-                Board snapshots travel over WebRTC. A public PeerJS service
-                supplies signaling only and does not store the board.
+                Ordered board changes travel over WebRTC. Full checkpoints are
+                reserved for joining and recovery. A public PeerJS service supplies
+                signaling only and does not store the board.
               </span>
             </div>
+            <p className="live-diagnostics">
+              <strong>
+                {session.diagnostics.route === 'relay'
+                  ? 'TURN relay route'
+                  : session.diagnostics.route === 'direct'
+                    ? 'Direct peer route'
+                    : 'Measuring peer route'}
+              </strong>
+              <span>
+                {session.diagnostics.roundTripMs === null
+                  ? 'Round-trip time pending'
+                  : `${session.diagnostics.roundTripMs} ms round trip`}
+                {' · '}
+                {session.diagnostics.pendingChanges === 0
+                  ? 'All changes acknowledged'
+                  : `${session.diagnostics.pendingChanges} change${
+                      session.diagnostics.pendingChanges === 1 ? '' : 's'
+                    } queued`}
+              </span>
+            </p>
             <p className="live-conflict-note">
-              Lightweight sync uses the latest received board snapshot. If two
-              people edit at exactly the same time, the later snapshot can replace
-              the earlier one.
+              Changes to different objects merge in host order. If two people edit
+              the same object at once, the host&apos;s latest ordered change wins.
+              Unacknowledged work is retained and replayed after reconnection.
             </p>
             <div className="transfer-actions">
               <button type="button" onClick={onDisconnect}>

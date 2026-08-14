@@ -4,7 +4,7 @@
 
 A local-first spatial thinking surface for touch displays, classrooms, studios, and collaborative workshops. It runs entirely in the browser and can be hosted on GitHub Pages without a server.
 
-## Current release — v0.13.0
+## Current release — v0.13.1
 
 - Pressure-aware pen and highlighter input with Surface Pen rear-eraser and
   barrel-button canvas movement
@@ -44,7 +44,14 @@ A local-first spatial thinking surface for touch displays, classrooms, studios, 
 - Personal-device-to-board intake for CoLab projects and images using a short
   code or camera-scanned QR card
 - Explicitly opt-in live peer boards with host/join codes, encrypted WebRTC
-  transport, initial host snapshot, connection status, and local-only default
+  transport, initial host checkpoint, connection status, and local-only default
+- Host-sequenced live operations merge edits to different objects without
+  retransmitting the complete board; acknowledgements, queued retries, and
+  recovery checkpoints prevent silent state loss after a connection interruption
+- Throttled live ink previews appear before pointer-up while durable strokes still
+  commit once, keeping replay, undo, autosave, and network traffic bounded
+- Live-session diagnostics identify direct versus TURN-relayed routes, round-trip
+  time, and unacknowledged changes
 - Facilitator preview and explicit accept/reject before incoming content is
   placed near the current view without replacing existing work
 - Installable PWA with an offline application shell
@@ -85,10 +92,17 @@ QR handoff uses the public PeerJS service for ephemeral connection signaling;
 board content itself travels directly between devices over an encrypted WebRTC
 data channel and is not stored by the signaling service.
 
-Live boards use the same signaling and encrypted peer transport. They exchange
-complete board snapshots only while users explicitly keep a session active.
-This first collaboration mode is intentionally lightweight: the latest received
-snapshot wins, so simultaneous conflicting edits can replace one another.
+Live boards use the same signaling and encrypted peer transport. The host sends
+one complete checkpoint when a participant joins or requests recovery. Normal
+work travels as small, ordered object and replay-event patches with per-device
+sequence numbers and acknowledgements. Unacknowledged changes remain queued
+across a reconnect, and each applied remote operation enters normal local
+autosave.
+
+Edits to different objects merge in host order. If participants change the same
+object concurrently, the latest host-ordered change wins; this intentionally
+avoids CRDT and account/server complexity while preventing unrelated work from
+being dropped.
 
 ### QR transfer requirements
 

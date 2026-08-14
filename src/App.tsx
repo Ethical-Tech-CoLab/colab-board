@@ -83,6 +83,7 @@ import {
 import { loadBoard, saveBoard } from './persistence'
 import { createBrandedPng } from './exportImage'
 import {
+  EMPTY_LIVE_DIAGNOSTICS,
   hostLiveSession,
   joinLiveSession,
   type LiveSession,
@@ -103,6 +104,7 @@ import type {
   ReplayStyle,
   SaveState,
   ScreensaverMode,
+  StrokeItem,
   TimelineEvent,
   Tool,
 } from './types'
@@ -320,6 +322,9 @@ function App() {
   const [liveSessionOpen, setLiveSessionOpen] = useState(false)
   const [liveSessionState, setLiveSessionState] =
     useState<LiveSessionView | null>(null)
+  const [remoteDrafts, setRemoteDrafts] = useState<Record<string, StrokeItem>>(
+    {},
+  )
   const [welcomeDismissed, setWelcomeDismissed] = useState(false)
   const [replay, setReplay] = useState<ReplayState | null>(null)
   const [takeBoard, setTakeBoard] = useState<{
@@ -391,6 +396,7 @@ function App() {
   const startLiveSession = useCallback(
     (role: LiveSessionRole, code?: string) => {
       liveSessionRef.current?.close()
+      setRemoteDrafts({})
       const attempt = ++liveAttempt.current
       const options = {
         onStatus: (status: LiveSessionView['status']) => {
@@ -419,22 +425,40 @@ function App() {
           )
           notify(error.message, 'error')
         },
+        onDiagnostics: (diagnostics: LiveSessionView['diagnostics']) => {
+          if (liveAttempt.current !== attempt) return
+          setLiveSessionState((current) =>
+            current ? { ...current, diagnostics } : current,
+          )
+        },
+        onDraft: (clientId: string, draft: StrokeItem | null) => {
+          if (liveAttempt.current !== attempt) return
+          setRemoteDrafts((current) => {
+            if (draft) return { ...current, [clientId]: draft }
+            if (!(clientId in current)) return current
+            const next = { ...current }
+            delete next[clientId]
+            return next
+          })
+        },
       }
 
       try {
         const session =
           role === 'host'
             ? hostLiveSession(boardRef.current, options)
-            : joinLiveSession(code ?? '', options)
+            : joinLiveSession(code ?? '', boardRef.current, options)
         liveSessionRef.current = session
         setLiveSessionState({
           code: session.code,
           role: session.role,
           status: 'starting',
           error: '',
+          diagnostics: EMPTY_LIVE_DIAGNOSTICS,
         })
       } catch (error: unknown) {
         liveSessionRef.current = null
+        setRemoteDrafts({})
         const message =
           error instanceof Error
             ? error.message
@@ -449,9 +473,14 @@ function App() {
     liveAttempt.current += 1
     liveSessionRef.current?.close()
     liveSessionRef.current = null
+    setRemoteDrafts({})
     setLiveSessionState(null)
     notify('Live board session ended. This board is local again.', 'info')
   }, [notify])
+
+  const publishLiveDraft = useCallback((draft: StrokeItem | null) => {
+    liveSessionRef.current?.publishDraft(draft)
+  }, [])
 
   useEffect(() => {
     if (!loaded || !liveSessionRef.current) return
@@ -1253,6 +1282,7 @@ function App() {
               touchMode={preferences.touchMode}
               dialMode={preferences.dialMode}
               selectedId={selectedId}
+              remoteDrafts={Object.values(remoteDrafts)}
               onAddItem={addItem}
               onUpdateItem={updateItem}
               onDeleteItem={deleteItem}
@@ -1270,6 +1300,7 @@ function App() {
                 }))
               }
               onActivity={markActivity}
+              onDraftChange={publishLiveDraft}
             />
           ) : (
             <Suspense
@@ -1288,6 +1319,7 @@ function App() {
                 accentColor={activeTheme.inkColors[0]}
                 selectedId={selectedId}
                 previewItem={spatialPreview}
+                remoteDrafts={Object.values(remoteDrafts)}
                 guideMode={preferences.perspectiveGuide}
                 tool={tool}
                 color={preferences.color}
@@ -1323,6 +1355,7 @@ function App() {
                 onToolChange={setTool}
                 onNoteEditingChange={setSpatialNoteEditing}
                 onActivity={markActivity}
+                onDraftChange={publishLiveDraft}
               />
             </Suspense>
           )}

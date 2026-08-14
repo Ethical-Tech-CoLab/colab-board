@@ -97,7 +97,7 @@ An open-source spatial thinking surface for learning, teaching, designing, resea
 
 # Product Backlog
 
-## P0 — Take a Board With You by QR Code
+## P0 — Take a Board With You by QR Code — Implemented in v0.3.0
 
 Let a participant scan a QR code displayed on the board and save a portable
 copy to their phone or tablet.
@@ -134,7 +134,7 @@ Acceptance criteria:
 - Expired and already-consumed links reveal no board data.
 - The source board remains usable while the QR is displayed.
 
-## P1 — Send Content From a Personal Device to a Board
+## P1 — Send Content From a Personal Device to a Board — Implemented in v0.4.0
 
 Let a participant contribute content from a phone or laptop to the whiteboard
 running on a shared display.
@@ -277,16 +277,9 @@ Acceptance criteria:
 - Generated themes survive reload, can be exported/imported, and never alter
   board content.
 
-## Active Priorities — v0.12
+## Delivery Status Through v0.13.1
 
-### Deferred P0 — board editing complexity
-
-Lasso, multi-select, grouping, locking, and advanced object transforms remain
-valuable, but are explicitly deferred. The near-term product should preserve a
-simple shared-whiteboard experience rather than make every object editable
-through a dense design-tool model.
-
-### Completed P1 — Replay Studio and screensaver pack
+### Completed — Replay Studio and screensaver pack
 
 - Exact, Accelerated, Artistic Camera, Ghost Trails, and Infinite Evolution
   treatments use the existing local timeline and retain scrubbing and speed
@@ -298,7 +291,7 @@ through a dense design-tool model.
   refresh roll, monospace hierarchy, and restrained machine voice.
 - Retro Snake supplies a contrasting continuously moving arcade scene.
 
-### Completed P2 — Surface hardware and lightweight live boards
+### Completed — Surface hardware and lightweight live boards
 
 - Surface Pen pressure remains native. The rear eraser temporarily erases
   regardless of the toolbar tool, the barrel button moves the canvas without
@@ -343,10 +336,80 @@ through a dense design-tool model.
 - The feature adds no dependency and only a few kilobytes to the already
   lazy-loaded Spatial payload.
 
-### Lower-priority follow-ons
+### Completed live synchronization hardening — v0.13.1
 
-- Revisit a small, touch-first subset of multi-object editing after observing
-  real workshop use.
-- Add Puzzle Explosion and Drawing Explosion screensavers.
-- Add conflict-aware live collaboration only if lightweight peer sessions prove
-  useful enough to justify CRDT and presence complexity.
+- Replaced whole-board, latest-snapshot synchronization with host-sequenced v2
+  operations. Normal edits transmit only changed objects, metadata, and compact
+  replay entries; a complete board checkpoint is reserved for join and repair.
+- Each participant uses ordered sequence numbers and acknowledgements. Pending
+  operations remain queued during reconnect, duplicate retries are idempotent,
+  and revision gaps request an authoritative checkpoint rather than continuing
+  from divergent state.
+- Unrelated simultaneous edits merge instead of replacing the complete board.
+  Same-object conflicts remain deterministic latest-host-order wins.
+- Ink previews use a throttled ephemeral channel so collaborators see an active
+  stroke before pointer-up. The durable stroke still commits once for undo,
+  replay, autosave, and efficient transport.
+- The live dialog reports direct versus TURN-relayed routing, measured WebRTC
+  round-trip time, and pending acknowledgements for real-device diagnosis.
+- A representative update on a board containing a 250 KB embedded image is
+  regression-tested at less than one percent of the previous snapshot payload.
+
+## Remaining Priorities — Post-v0.13.1
+
+There is no open P0 blocking normal whiteboard use. The next releases should
+finish the original delight promise and harden observed workflows without
+turning the application into a dense design or collaboration suite.
+
+### P1 — Complete the signature screensaver library
+
+Add the two concepts still missing from the original library:
+
+- **Puzzle Explosion:** board fragments assemble into the completed composition,
+  hold, then separate cleanly before the next cycle.
+- **Drawing Explosion:** strokes, notes, and images disperse from their authored
+  positions and reform without changing the saved board.
+
+Both modes should use the existing idle/screensaver framework, respect reduced
+motion, remain responsive in portrait layouts, clean up timers and Three.js
+resources when closed, and add no dependency unless the visual result clearly
+justifies it.
+
+### P1 — Real-device Spatial and Surface acceptance pass
+
+Validate v0.13.0 on a physical Surface Hub and Surface laptop with the large and
+standard Surface Pens. Cover pressure, rear eraser, barrel navigation, palm
+rejection, touch drawing/navigation, rotation into portrait, dropped images,
+long strokes, and repeated Canvas/Spatial switching. Fix demonstrated defects;
+do not expand the tool model during this pass.
+
+### P2 — Bounded mobile QR reliability pass
+
+[GitHub issue #1](https://github.com/Ethical-Tech-CoLab/ethical-tech-colab-board/issues/1)
+remains open because a camera-opened mobile receiver can intermittently stay at
+**Connected...** while manual code entry succeeds. Add state-transition
+diagnostics and test mobile page resume, payload acknowledgement, and timeout
+recovery. Keep code entry and project download prominent, and stop the
+investigation if a reliable fix would require a hosted content service or
+significant transfer architecture.
+
+### P3 — Touch-first multi-object editing
+
+Revisit lasso, multi-select, grouping, locking, and batch movement only after
+workshop observation shows a recurring need. Start with a small touch-first
+subset and preserve the current low-chrome whiteboard experience; do not adopt a
+desktop design-tool inspector by default.
+
+### Deferred until evidence justifies the complexity
+
+- Conflict-aware live collaboration, presence, and CRDT synchronization.
+- Arbitrary 3D surfaces, freeform 3D transforms, and CAD-style scene tooling.
+- Server accounts, hosted board storage, or mandatory cloud infrastructure.
+
+### Recommended release order
+
+1. **v0.14.0:** Puzzle Explosion and Drawing Explosion.
+2. **v0.14.x:** real-device Spatial/Surface fixes discovered during acceptance.
+3. **Later maintenance:** one bounded pass on the mobile QR issue.
+4. **Research only:** multi-object editing and richer collaboration after real
+   workshop demand is documented.
