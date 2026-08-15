@@ -55,12 +55,28 @@ button {
   color: inherit;
 }
 
+/* Propagate the page color-scheme explicitly so the browser/OS renders the
+   native <select> popup (and its <option> list) in the correct light/dark
+   mode even when an explicit background-color is applied to the <select>. */
+select {
+  color-scheme: inherit;
+}
+
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  outline: 3px solid rgba(35, 115, 89, 0.35);
+  outline: 3px solid color-mix(in srgb, var(--brand-accent) 55%, transparent);
   outline-offset: 2px;
+}
+
+@media (forced-colors: active) {
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 3px solid ButtonText;
+  }
 }
 
 button:disabled {
