@@ -235,20 +235,17 @@ export function clearTransferIntent() {
   history.replaceState(null, '', `${location.pathname}${location.search}`)
 }
 
-/**
- * Pure helper: parses a URL hash string and returns a valid live-session code,
- * or null if the parameter is absent or invalid.  Testable without a browser.
- */
 export function parseLiveSessionCode(hash: string): string | null {
   const parameters = new URLSearchParams(hash.slice(1))
   const code = parameters.get('session')
   return code && isValidTransferCode(code) ? normalizeTransferCode(code) : null
 }
 
-/**
- * Pure helper: builds a join URL from a base URL string, an existing hash
- * string, and a session code.  Testable without a browser.
- */
+export function getRawLiveSessionParam(hash: string): string | null {
+  const value = new URLSearchParams(hash.slice(1)).get('session')
+  return value ? normalizeTransferCode(value) : null
+}
+
 export function buildLiveSessionLink(
   base: string,
   currentHash: string,
@@ -261,31 +258,15 @@ export function buildLiveSessionLink(
   return url.toString()
 }
 
-/**
- * Creates a shareable join URL that routes the recipient directly into the
- * live-session join flow with the given host code pre-filled.
- *
- * The code is embedded in the URL hash (`#session=CODE`) so it is never sent
- * to a server; it stays in the browser and is only shared peer-to-peer when
- * the recipient opens the link.
- */
 export function createLiveSessionLink(code: string): string {
   const base = new URL(import.meta.env.BASE_URL, window.location.href).toString()
   return buildLiveSessionLink(base, window.location.hash, code)
 }
 
-/**
- * Reads a live-session join code from the URL hash (`#session=CODE`), if
- * present and valid.  Returns null otherwise so the normal idle state is shown.
- */
 export function getLiveSessionIntent(): string | null {
   return parseLiveSessionCode(window.location.hash)
 }
 
-/**
- * Removes the `session` parameter from the URL hash without touching other
- * hash parameters or the query string, preventing a reconnect loop on reload.
- */
 export function clearLiveSessionIntent() {
   const parameters = new URLSearchParams(window.location.hash.slice(1))
   parameters.delete('session')

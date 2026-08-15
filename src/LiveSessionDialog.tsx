@@ -2,14 +2,15 @@ import { useState } from 'react'
 import {
   Check,
   Copy,
+  Link,
   LoaderCircle,
   RadioTower,
+  RefreshCw,
   ShieldCheck,
   Unplug,
   Users,
   X,
 } from 'lucide-react'
-import { Link } from 'lucide-react'
 import { formatTransferCode, normalizeTransferCode, createLiveSessionLink } from './transfer'
 import type {
   LiveSessionDiagnostics,
@@ -27,6 +28,8 @@ export interface LiveSessionView {
 
 interface LiveSessionDialogProps {
   session: LiveSessionView | null
+  initialCode?: string
+  initialCodeError?: string
   onHost: () => void
   onJoin: (code: string) => void
   onDisconnect: () => void
@@ -44,13 +47,18 @@ function statusCopy(status: LiveSessionStatus, role: LiveSessionRole) {
 
 export default function LiveSessionDialog({
   session,
+  initialCode,
+  initialCodeError,
   onHost,
   onJoin,
   onDisconnect,
   onClose,
 }: LiveSessionDialogProps) {
-  const [role, setRole] = useState<LiveSessionRole>('host')
-  const [code, setCode] = useState('')
+  const [role, setRole] = useState<LiveSessionRole>(initialCode ? 'join' : 'host')
+  const [code, setCode] = useState(
+    initialCode ? formatTransferCode(normalizeTransferCode(initialCode)) : '',
+  )
+  const [codeError, setCodeError] = useState(initialCodeError ?? '')
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle')
   const [copyUrlState, setCopyUrlState] = useState<'idle' | 'copied' | 'error'>('idle')
 
@@ -137,12 +145,14 @@ export default function LiveSessionDialog({
                   inputMode="text"
                   autoCapitalize="characters"
                   placeholder="ABCD EFGH"
-                  onChange={(event) =>
+                  onChange={(event) => {
                     setCode(
                       formatTransferCode(normalizeTransferCode(event.target.value)),
                     )
-                  }
+                    setCodeError('')
+                  }}
                 />
+                {codeError && <span className="transfer-error">{codeError}</span>}
               </label>
             )}
             <div className="transfer-actions">
@@ -250,6 +260,19 @@ export default function LiveSessionDialog({
               <button type="button" onClick={onDisconnect}>
                 <Unplug /> End live session
               </button>
+              {session.role === 'join' && session.status === 'error' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCode(formatTransferCode(session.code))
+                    setRole('join')
+                    setCodeError('')
+                    onDisconnect()
+                  }}
+                >
+                  <RefreshCw /> Try another code
+                </button>
+              )}
               <button className="primary" type="button" onClick={onClose}>
                 Keep working
               </button>

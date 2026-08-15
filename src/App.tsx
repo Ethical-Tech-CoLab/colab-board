@@ -92,7 +92,8 @@ import {
 import {
   clearTransferIntent,
   getTransferIntent,
-  getLiveSessionIntent,
+  getRawLiveSessionParam,
+  isValidTransferCode,
   clearLiveSessionIntent,
   type TransferContent,
 } from './transfer'
@@ -322,9 +323,11 @@ function App() {
   const [helpOpen, setHelpOpen] = useState(false)
   const [themeItOpen, setThemeItOpen] = useState(false)
   const [liveSessionOpen, setLiveSessionOpen] = useState(false)
-  const [liveSessionIntent] = useState<string | null>(() =>
-    getLiveSessionIntent(),
-  )
+  const [liveSessionIntent] = useState<{ code: string; valid: boolean } | null>(() => {
+    const raw = getRawLiveSessionParam(window.location.hash)
+    if (!raw) return null
+    return { code: raw, valid: isValidTransferCode(raw) }
+  })
   const [liveSessionState, setLiveSessionState] =
     useState<LiveSessionView | null>(null)
   const [remoteDrafts, setRemoteDrafts] = useState<Record<string, StrokeItem>>(
@@ -483,14 +486,11 @@ function App() {
     notify('Live board session ended. This board is local again.', 'info')
   }, [notify])
 
-  // When the page is opened via a shareable join URL (#session=CODE), auto-start
-  // the join flow once the local board has loaded.  The hash param is cleared
-  // immediately to prevent a reconnect loop on reload (requirement 4).
   useEffect(() => {
     if (!loaded || !liveSessionIntent) return
     clearLiveSessionIntent()
     setLiveSessionOpen(true)
-    startLiveSession('join', liveSessionIntent)
+    if (liveSessionIntent.valid) startLiveSession('join', liveSessionIntent.code)
   }, [loaded, liveSessionIntent, startLiveSession])
 
   const publishLiveDraft = useCallback(
@@ -2168,6 +2168,12 @@ function App() {
       {liveSessionOpen && (
         <LiveSessionDialog
           session={liveSessionState}
+          initialCode={liveSessionIntent?.code}
+          initialCodeError={
+            liveSessionIntent && !liveSessionIntent.valid
+              ? 'This link contained an invalid session code. Check it and try again.'
+              : undefined
+          }
           onHost={() => startLiveSession('host')}
           onJoin={(code) => startLiveSession('join', code)}
           onDisconnect={disconnectLiveSession}

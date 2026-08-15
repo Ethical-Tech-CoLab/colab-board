@@ -8,6 +8,7 @@ import {
   createImageTransferEnvelope,
   formatTransferCode,
   generateTransferCode,
+  getRawLiveSessionParam,
   isValidTransferCode,
   normalizeTransferCode,
   parseLiveSessionCode,
@@ -81,6 +82,16 @@ describe('live session URLs', () => {
     expect(link).toContain('other=value')
   })
 
+  it('preserves the query string when embedding the session code', () => {
+    const link = buildLiveSessionLink(
+      'https://example.org/?foo=bar',
+      '',
+      'ABCD2345',
+    )
+    expect(link).toContain('foo=bar')
+    expect(link).toContain('session=ABCD2345')
+  })
+
   it('reads a valid session code back from the hash', () => {
     expect(parseLiveSessionCode('#session=ABCD2345')).toBe('ABCD2345')
   })
@@ -92,6 +103,30 @@ describe('live session URLs', () => {
   it('returns null when session param is absent', () => {
     expect(parseLiveSessionCode('')).toBeNull()
     expect(parseLiveSessionCode('#other=value')).toBeNull()
+  })
+
+  describe('malformed intent detection', () => {
+    it('returns the raw normalized value even when the code is invalid', () => {
+      expect(getRawLiveSessionParam('#session=BAD')).toBe('BAD')
+      expect(getRawLiveSessionParam('#session=abcd')).toBe('ABCD')
+    })
+
+    it('returns null when the session param is absent', () => {
+      expect(getRawLiveSessionParam('')).toBeNull()
+      expect(getRawLiveSessionParam('#other=value')).toBeNull()
+    })
+
+    it('distinguishes invalid from valid: parseLiveSessionCode rejects what getRawLiveSessionParam accepts', () => {
+      const invalidHash = '#session=SHORT'
+      expect(getRawLiveSessionParam(invalidHash)).toBe('SHORT')
+      expect(parseLiveSessionCode(invalidHash)).toBeNull()
+    })
+
+    it('both helpers agree on a valid 8-character code', () => {
+      const hash = '#session=ABCD2345'
+      expect(getRawLiveSessionParam(hash)).toBe('ABCD2345')
+      expect(parseLiveSessionCode(hash)).toBe('ABCD2345')
+    })
   })
 })
 
