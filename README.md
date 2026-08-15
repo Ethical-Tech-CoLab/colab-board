@@ -145,7 +145,34 @@ recipients, even though message batching removes most per-author packet fan-out.
 Use a desktop or unmetered connection for the host, especially on a TURN relay.
 Larger sessions should be benchmarked on their real network before facilitation.
 
-### QR transfer requirements
+### Live-session join URLs
+
+When hosting, the Live board dialog exposes two copy actions:
+
+- **Copy** — copies the 8-character code (`ABCD 1234`) for manual entry.
+- **Copy join URL** — copies a full URL (`https://…/#session=ABCD1234`) that
+  recipients can open directly in a browser to skip manual code entry.
+
+Opening a join URL opens the Live board dialog and immediately attempts to
+connect to the host without requiring the code to be typed.  The join code is
+embedded in the URL **hash fragment** (`#session=CODE`), which is never sent to
+a web server — it stays in the browser and is shared only between the host and
+the participant.  All subsequent board data travels over the same encrypted,
+peer-to-peer WebRTC channel described above.
+
+If the session is no longer available (host has disconnected) or the code is
+malformed, the existing peer-unavailable error is surfaced and the user can
+correct or re-enter the code manually.  The hash parameter is removed from the
+URL as soon as the join attempt begins, so reloading the page does not trigger
+a second attempt.  Other hash or query parameters present in the URL are
+preserved.
+
+**Privacy summary:** The join URL embeds the session code in the fragment
+identifier only.  No CoLab server, analytics endpoint, or PeerJS signaling
+server receives the code via this URL; it is processed entirely in the
+recipient's browser before any network request is made.
+
+
 
 - Both devices need a current browser with WebRTC data-channel support and
   internet access to PeerJS signaling and relay services.

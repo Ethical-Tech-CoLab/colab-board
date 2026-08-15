@@ -92,6 +92,8 @@ import {
 import {
   clearTransferIntent,
   getTransferIntent,
+  getLiveSessionIntent,
+  clearLiveSessionIntent,
   type TransferContent,
 } from './transfer'
 import type {
@@ -320,6 +322,9 @@ function App() {
   const [helpOpen, setHelpOpen] = useState(false)
   const [themeItOpen, setThemeItOpen] = useState(false)
   const [liveSessionOpen, setLiveSessionOpen] = useState(false)
+  const [liveSessionIntent] = useState<string | null>(() =>
+    getLiveSessionIntent(),
+  )
   const [liveSessionState, setLiveSessionState] =
     useState<LiveSessionView | null>(null)
   const [remoteDrafts, setRemoteDrafts] = useState<Record<string, StrokeItem>>(
@@ -477,6 +482,16 @@ function App() {
     setLiveSessionState(null)
     notify('Live board session ended. This board is local again.', 'info')
   }, [notify])
+
+  // When the page is opened via a shareable join URL (#session=CODE), auto-start
+  // the join flow once the local board has loaded.  The hash param is cleared
+  // immediately to prevent a reconnect loop on reload (requirement 4).
+  useEffect(() => {
+    if (!loaded || !liveSessionIntent) return
+    clearLiveSessionIntent()
+    setLiveSessionOpen(true)
+    startLiveSession('join', liveSessionIntent)
+  }, [loaded, liveSessionIntent, startLiveSession])
 
   const publishLiveDraft = useCallback(
     (draft: StrokeItem | null, reason?: 'end' | 'cancel') => {

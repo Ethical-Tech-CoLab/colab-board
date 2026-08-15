@@ -9,7 +9,8 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { formatTransferCode, normalizeTransferCode } from './transfer'
+import { Link } from 'lucide-react'
+import { formatTransferCode, normalizeTransferCode, createLiveSessionLink } from './transfer'
 import type {
   LiveSessionDiagnostics,
   LiveSessionRole,
@@ -51,6 +52,7 @@ export default function LiveSessionDialog({
   const [role, setRole] = useState<LiveSessionRole>('host')
   const [code, setCode] = useState('')
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle')
+  const [copyUrlState, setCopyUrlState] = useState<'idle' | 'copied' | 'error'>('idle')
 
   const copyCode = async () => {
     if (!session) return
@@ -60,6 +62,17 @@ export default function LiveSessionDialog({
     } catch (error: unknown) {
       console.error('Live session code could not be copied.', error)
       setCopyState('error')
+    }
+  }
+
+  const copyJoinUrl = async () => {
+    if (!session) return
+    try {
+      await navigator.clipboard.writeText(createLiveSessionLink(session.code))
+      setCopyUrlState('copied')
+    } catch (error: unknown) {
+      console.error('Live session join URL could not be copied.', error)
+      setCopyUrlState('error')
     }
   }
 
@@ -187,6 +200,16 @@ export default function LiveSessionDialog({
                     ? 'Copy failed'
                     : 'Copy'}
               </button>
+              {session.role === 'host' && (
+                <button type="button" onClick={copyJoinUrl}>
+                  {copyUrlState === 'copied' ? <Check /> : <Link />}
+                  {copyUrlState === 'copied'
+                    ? 'Link copied'
+                    : copyUrlState === 'error'
+                      ? 'Copy failed'
+                      : 'Copy join URL'}
+                </button>
+              )}
             </div>
             {session.error && <p className="transfer-error">{session.error}</p>}
             <div className="transfer-trust">

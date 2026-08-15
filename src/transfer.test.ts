@@ -3,12 +3,14 @@ import { createBoard } from './board'
 import {
   RECEIVE_TIMEOUT_MS,
   TRANSFER_PROTOCOL,
+  buildLiveSessionLink,
   createBoardTransferEnvelope,
   createImageTransferEnvelope,
   formatTransferCode,
   generateTransferCode,
   isValidTransferCode,
   normalizeTransferCode,
+  parseLiveSessionCode,
   transferErrorMessage,
   transferCodeFromValue,
   validateBoardTransferEnvelope,
@@ -54,6 +56,42 @@ describe('transfer codes', () => {
       transferCodeFromValue('https://example.org/board/#send=ABCD2345'),
     ).toBe('ABCD2345')
     expect(transferCodeFromValue('https://example.org/#send=invalid')).toBeNull()
+  })
+})
+
+describe('live session URLs', () => {
+  it('embeds the code in the hash as #session=CODE', () => {
+    const link = buildLiveSessionLink('https://example.org/', '', 'ABCD2345')
+    expect(link).toContain('session=ABCD2345')
+    expect(link).toContain('#')
+  })
+
+  it('normalizes the code before embedding', () => {
+    const link = buildLiveSessionLink('https://example.org/', '', 'abcd 2345')
+    expect(link).toContain('session=ABCD2345')
+  })
+
+  it('preserves existing hash parameters when adding the session code', () => {
+    const link = buildLiveSessionLink(
+      'https://example.org/',
+      '#other=value',
+      'ABCD2345',
+    )
+    expect(link).toContain('session=ABCD2345')
+    expect(link).toContain('other=value')
+  })
+
+  it('reads a valid session code back from the hash', () => {
+    expect(parseLiveSessionCode('#session=ABCD2345')).toBe('ABCD2345')
+  })
+
+  it('returns null for a malformed session hash param', () => {
+    expect(parseLiveSessionCode('#session=BADHASH')).toBeNull()
+  })
+
+  it('returns null when session param is absent', () => {
+    expect(parseLiveSessionCode('')).toBeNull()
+    expect(parseLiveSessionCode('#other=value')).toBeNull()
   })
 })
 
