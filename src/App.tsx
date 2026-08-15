@@ -1327,8 +1327,14 @@ function App() {
               onCameraSettled={recordCamera}
               onSelectionChange={(id) => {
                 setSelectedId(id)
-                setCanvasImagePreview(null)
+                // Keep the inspector preview alive when the user re-clicks
+                // (or starts dragging) the same image; clear it only when a
+                // different item or blank canvas is selected.
+                setCanvasImagePreview((prev) =>
+                  prev?.id === id ? prev : null,
+                )
               }}
+              onImageDragCommitted={() => setCanvasImagePreview(null)}
               onFilesDropped={addImageFiles}
               onStrokeWidthDelta={(delta) =>
                 setPreferences((current) => ({

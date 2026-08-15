@@ -57,6 +57,7 @@ interface CanvasBoardProps {
   onFilesDropped: (files: FileList, point: { x: number; y: number }) => void
   onStrokeWidthDelta: (delta: number) => void
   onActivity: () => void
+  onImageDragCommitted?: () => void
   onDraftChange: (
     draft: StrokeItem | null,
     reason?: 'end' | 'cancel',
@@ -216,6 +217,7 @@ export default function CanvasBoard({
   onFilesDropped,
   onStrokeWidthDelta,
   onActivity,
+  onImageDragCommitted,
   onDraftChange,
 }: CanvasBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -496,9 +498,13 @@ export default function CanvasBoard({
     const hit = hitTest(document.items, point.x, point.y, 8 / camera.scale)
     onSelectionChange(hit?.id ?? null)
     if (hit?.type === 'image') {
+      // Seed from the active inspector preview so uncommitted opacity/size
+      // edits are preserved if the user drags immediately after a slider change.
+      const dragBase =
+        imageInspectorPreview?.id === hit.id ? imageInspectorPreview : hit
       dragInteraction.current = {
         pointerId: event.pointerId,
-        item: cloneItem(hit),
+        item: cloneItem(dragBase),
         startWorldX: point.x,
         startWorldY: point.y,
       }
@@ -614,7 +620,10 @@ export default function CanvasBoard({
       erasedIds.current.clear()
     }
     if (dragInteraction.current?.pointerId === event.pointerId) {
-      if (previewItem) onUpdateItem(previewItem)
+      if (previewItem) {
+        onUpdateItem(previewItem)
+        onImageDragCommitted?.()
+      }
       dragInteraction.current = null
       setPreviewItem(null)
     }

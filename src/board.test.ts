@@ -398,4 +398,52 @@ describe('image editing helpers', () => {
     expect(small.width).toBeGreaterThanOrEqual(10)
     expect(small.height).toBeGreaterThanOrEqual(10)
   })
+
+  it('drag seeded from inspector preview preserves opacity and size after repositioning', () => {
+    // Simulate: user adjusts opacity and width via the inspector, then immediately
+    // drags the same image before the React re-render has settled.  The drag must
+    // seed its base item from the inspector preview, not from the stale document
+    // state, so the final committed item carries all three changes.
+
+    const original = fitImage('data:image/png;base64,x', 'photo.png', 400, 300, {
+      x: 100,
+      y: 80,
+    })
+    const aspectRatio = original.width / original.height
+
+    // Inspector commit: opacity → 0.35, width scaled to 240 (aspect-ratio locked)
+    const inspectorNewWidth = 240
+    const inspectorNewHeight = Math.round(inspectorNewWidth / aspectRatio)
+    const cx = original.x + original.width / 2
+    const cy = original.y + original.height / 2
+    const inspectorEdit = withImageEdit(original, {
+      opacity: 0.35,
+      width: inspectorNewWidth,
+      height: inspectorNewHeight,
+      x: cx - inspectorNewWidth / 2,
+      y: cy - inspectorNewHeight / 2,
+    })
+
+    expect(inspectorEdit.opacity).toBeCloseTo(0.35)
+    expect(inspectorEdit.width).toBe(inspectorNewWidth)
+
+    // Drag seeds from the inspector preview item and moves +120 / +60
+    const dx = 120
+    const dy = 60
+    const afterDrag = {
+      ...inspectorEdit,
+      x: inspectorEdit.x + dx,
+      y: inspectorEdit.y + dy,
+    }
+
+    // All inspector-set properties must survive the position change
+    expect(afterDrag.opacity).toBeCloseTo(0.35)
+    expect(afterDrag.width).toBe(inspectorNewWidth)
+    expect(afterDrag.height).toBe(inspectorNewHeight)
+    expect(afterDrag.x).toBe(inspectorEdit.x + dx)
+    expect(afterDrag.y).toBe(inspectorEdit.y + dy)
+    // Source data unchanged
+    expect(afterDrag.src).toBe(original.src)
+    expect(afterDrag.id).toBe(original.id)
+  })
 })
