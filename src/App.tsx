@@ -117,6 +117,7 @@ import type {
   WaterDropFrequency,
   WaterDropLocation,
   WaterIntensity,
+  WaterWaveSpeed,
 } from './types'
 import { normalizeDisturbanceCount } from './waterUtils'
 import './App.css'
@@ -143,6 +144,7 @@ const DEFAULT_PREFERENCES: Preferences = {
   waterDisturbancePreset: 'ripple' as const,
   waterDisturbanceCount: 1 as const,
   waterIntensity: 'medium' as const,
+  waterWaveSpeed: 'half' as const,
 }
 
 const TOOL_CONFIG: Array<{
@@ -289,6 +291,11 @@ function loadPreferences(): Preferences {
     ).includes(parsed.waterIntensity ?? 'medium')
       ? (parsed.waterIntensity ?? DEFAULT_PREFERENCES.waterIntensity)
       : DEFAULT_PREFERENCES.waterIntensity
+    const waterWaveSpeed = (
+      ['half', 'normal', 'double'] as const
+    ).includes(parsed.waterWaveSpeed ?? DEFAULT_PREFERENCES.waterWaveSpeed)
+      ? (parsed.waterWaveSpeed ?? DEFAULT_PREFERENCES.waterWaveSpeed)
+      : DEFAULT_PREFERENCES.waterWaveSpeed
     const waterDisturbanceCount = normalizeDisturbanceCount(
       parsed.waterDisturbanceCount,
     )
@@ -309,6 +316,7 @@ function loadPreferences(): Preferences {
       waterDisturbancePreset,
       waterDisturbanceCount,
       waterIntensity,
+      waterWaveSpeed,
       replayStyle: (
         ['exact', 'accelerated', 'artistic', 'ghosts', 'evolution'] as const
       ).includes(parsed.replayStyle ?? 'accelerated')
@@ -2102,6 +2110,22 @@ function App() {
                       <option value="strong">Strong</option>
                     </select>
                   </label>
+                  <label>
+                    Wave speed
+                    <select
+                      value={preferences.waterWaveSpeed}
+                      onChange={(event) =>
+                        setPreferences((current) => ({
+                          ...current,
+                          waterWaveSpeed: event.target.value as WaterWaveSpeed,
+                        }))
+                      }
+                    >
+                      <option value="half">Calm — 0.5×</option>
+                      <option value="normal">Original — 1×</option>
+                      <option value="double">Fast — 2×</option>
+                    </select>
+                  </label>
                 </div>
               )}
               <button
@@ -2333,6 +2357,7 @@ function App() {
             waterDisturbancePreset: preferences.waterDisturbancePreset,
             waterDisturbanceCount: preferences.waterDisturbanceCount,
             waterIntensity: preferences.waterIntensity,
+            waterWaveSpeed: preferences.waterWaveSpeed,
           }}
           onClose={() => setReplay(null)}
         />

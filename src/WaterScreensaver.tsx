@@ -8,13 +8,20 @@ import {
 } from './board'
 import type { BrandTheme } from './branding'
 import { drawScene, type ImageCache } from './render'
-import type { BoardDocument, BoardItem, Camera } from './types'
+import type {
+  BoardDocument,
+  BoardItem,
+  Camera,
+  WaterWaveSpeed,
+} from './types'
 import {
+  getWaveAge,
   probeWebGL,
   randomDropDelay,
   randomWaveAmplitude,
   resolveDropPosition,
   INTENSITY_AMPLITUDE,
+  WAVE_SPEED_MULTIPLIER,
 } from './waterUtils'
 
 const TEXTURE_W = 1024
@@ -28,12 +35,13 @@ uniform float uTime;
 uniform vec4 uWaves[12];
 uniform int uWaveCount;
 uniform float uAmplitude;
+uniform float uWaveSpeed;
 varying vec2 vUv;
 varying vec3 vPos;
 varying float vHeight;
 
 float waveH(vec2 p, vec4 w, float t) {
-  float age = t - w.z;
+  float age = (t - w.z) * uWaveSpeed;
   if (age < 0.0 || age > 9.0) return 0.0;
   float dist = length(p - w.xy);
   float env = exp(-(age * 0.35 + dist * 1.1)) * w.w;
@@ -48,7 +56,8 @@ void main() {
     if (i >= uWaveCount) break;
     h += waveH(planePos, uWaves[i], uTime);
   }
-  h += sin(planePos.x * 3.1 + uTime * 0.65) * cos(planePos.y * 2.7 + uTime * 0.48) * 0.015;
+  float ambientTime = uTime * uWaveSpeed;
+  h += sin(planePos.x * 3.1 + ambientTime * 0.65) * cos(planePos.y * 2.7 + ambientTime * 0.48) * 0.015;
   vHeight = h;
   vec3 displaced = position + vec3(0.0, h * uAmplitude, 0.0);
   vPos = (modelMatrix * vec4(displaced, 1.0)).xyz;
@@ -97,6 +106,7 @@ export interface WaterScreensaverPrefs {
   waterDisturbancePreset: 'ripple' | 'drop' | 'splash'
   waterDisturbanceCount: 1 | 2 | 3
   waterIntensity: 'subtle' | 'medium' | 'strong'
+  waterWaveSpeed: WaterWaveSpeed
 }
 
 interface WaterScreensaverProps {
@@ -308,6 +318,9 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
         uWaves: { value: uniformWaves },
         uWaveCount: { value: 0 },
         uAmplitude: { value: initialAmplitude },
+        uWaveSpeed: {
+          value: WAVE_SPEED_MULTIPLIER[prefsRef.current.waterWaveSpeed],
+        },
         uBoardTex: { value: boardTexture },
         uWaterColor: { value: getWaterColor(themeRef.current) },
         uLightPos: { value: new THREE.Vector3() },
@@ -343,9 +356,12 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
 
     // Exposed via ref so the prefs effect can update uniforms without touching the texture.
     const syncPrefs = () => {
-      if (prefersReducedMotion) return
-      material.uniforms.uAmplitude.value =
-        INTENSITY_AMPLITUDE[prefsRef.current.waterIntensity]
+      material.uniforms.uWaveSpeed.value =
+        WAVE_SPEED_MULTIPLIER[prefsRef.current.waterWaveSpeed]
+      if (!prefersReducedMotion) {
+        material.uniforms.uAmplitude.value =
+          INTENSITY_AMPLITUDE[prefsRef.current.waterIntensity]
+      }
     }
     syncPrefsRef.current = syncPrefs
 
@@ -483,7 +499,12 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
       material.uniforms.uTime.value = time
 
       for (let index = waves.length - 1; index >= 0; index -= 1) {
-        if (time - waves[index].startTime > RIPPLE_LIFETIME_SECONDS) {
+        if (
+          getWaveAge(
+            time - waves[index].startTime,
+            prefsRef.current.waterWaveSpeed,
+          ) > RIPPLE_LIFETIME_SECONDS
+        ) {
           waves.splice(index, 1)
         }
       }

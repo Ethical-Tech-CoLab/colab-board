@@ -3,6 +3,7 @@ import type {
   WaterDropLocation,
   WaterDisturbancePreset,
   WaterIntensity,
+  WaterWaveSpeed,
 } from './types'
 
 export type {
@@ -10,6 +11,7 @@ export type {
   WaterDropLocation,
   WaterDisturbancePreset,
   WaterIntensity,
+  WaterWaveSpeed,
 }
 
 /**
@@ -51,6 +53,19 @@ export const INTENSITY_AMPLITUDE: Record<WaterIntensity, number> = {
   subtle: 0.07,
   medium: 0.12,
   strong: 0.20,
+}
+
+export const WAVE_SPEED_MULTIPLIER: Record<WaterWaveSpeed, number> = {
+  half: 0.5,
+  normal: 1,
+  double: 2,
+}
+
+export function getWaveAge(
+  elapsedSeconds: number,
+  speed: WaterWaveSpeed,
+): number {
+  return elapsedSeconds * WAVE_SPEED_MULTIPLIER[speed]
 }
 
 export interface DisturbanceParams {

@@ -8,6 +8,8 @@ import {
   randomWaveAmplitude,
   normalizeDisturbanceCount,
   resolveDropPosition,
+  getWaveAge,
+  WAVE_SPEED_MULTIPLIER,
 } from './waterUtils'
 
 // Build a minimal HTMLCanvasElement-shaped stub that returns a fixed context.
@@ -86,6 +88,18 @@ describe('water intensity presets', () => {
   it('scales wave height from subtle to strong', () => {
     expect(INTENSITY_AMPLITUDE.subtle).toBeLessThan(INTENSITY_AMPLITUDE.medium)
     expect(INTENSITY_AMPLITUDE.medium).toBeLessThan(INTENSITY_AMPLITUDE.strong)
+  })
+
+  describe('water wave speed presets', () => {
+    it('defaults can use half speed to make waves take twice as long', () => {
+      expect(WAVE_SPEED_MULTIPLIER.half).toBe(0.5)
+      expect(getWaveAge(10, 'half')).toBe(5)
+    })
+
+    it('preserves original and double-speed options', () => {
+      expect(getWaveAge(10, 'normal')).toBe(10)
+      expect(getWaveAge(10, 'double')).toBe(20)
+    })
   })
 })
 

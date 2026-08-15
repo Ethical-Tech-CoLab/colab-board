@@ -32,8 +32,8 @@ A local-first spatial thinking surface for touch displays, classrooms, studios, 
   Flow, and Idea Constellation screensavers
 - A lazy-loaded Three.js Water Surface screensaver with fitted board reflections,
   object-anchored ripples, interacting waves, live lighting, reduced-motion
-  behavior, configurable drop rate/location/style/count/intensity, and a
-  lightweight 2D fallback when WebGL is unavailable
+  behavior, configurable drop rate/location/style/count/intensity/speed, a calm
+  half-speed default, and a lightweight 2D fallback when WebGL is unavailable
 - WarGames Terminal, faithfully adapted from the Ethical Tech CoLab
   [War-Games](https://github.com/Ethical-Tech-CoLab/War-Games) design system,
   and a moving Retro Snake screensaver

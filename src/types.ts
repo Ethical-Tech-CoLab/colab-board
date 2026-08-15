@@ -46,6 +46,7 @@ export type WaterDropFrequency = 'slow' | 'medium' | 'fast'
 export type WaterDropLocation = 'board-objects' | 'center' | 'edges' | 'random'
 export type WaterDisturbancePreset = 'ripple' | 'drop' | 'splash'
 export type WaterIntensity = 'subtle' | 'medium' | 'strong'
+export type WaterWaveSpeed = 'half' | 'normal' | 'double'
 
 export interface SpatialTransform {
   depth: number
@@ -165,6 +166,7 @@ export interface Preferences {
   waterDisturbancePreset: WaterDisturbancePreset
   waterDisturbanceCount: 1 | 2 | 3
   waterIntensity: WaterIntensity
+  waterWaveSpeed: WaterWaveSpeed
 }
 
 export type SaveState = 'loading' | 'saving' | 'saved' | 'error'
