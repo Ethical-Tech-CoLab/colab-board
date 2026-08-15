@@ -1,6 +1,16 @@
 import Peer, { type DataConnection, util } from 'peerjs'
 import { isBoardDocument } from './board'
 import {
+  applyLiveDraftUpdate,
+  coalesceLiveDraftUpdate,
+  createLiveDraftTransition,
+  isLiveDraftUpdate,
+  withLiveDraftClientId,
+  type LiveDraftCursor,
+  type LiveDraftEndReason,
+  type LiveDraftUpdate,
+} from './liveDraftProtocol'
+import {
   applyLiveBoardPatch,
   applyLiveBoardPatches,
   createLiveBoardPatch,
@@ -20,6 +30,8 @@ export { LIVE_SESSION_PROTOCOL } from './liveProtocol'
 const LIVE_PEER_PREFIX = 'etc-colab-live-'
 const DIAGNOSTIC_INTERVAL_MS = 5_000
 const DRAFT_INTERVAL_MS = 50
+const COMMIT_INTERVAL_MS = 16
+const DRAFT_BUFFER_LIMIT_BYTES = 128 * 1_024
 const RECONNECT_DELAYS_MS = [250, 500, 1_000, 2_000, 5_000]
 
 export type LiveSessionRole = 'host' | 'join'
@@ -50,7 +62,10 @@ export interface LiveSession {
   code: string
   role: LiveSessionRole
   publish: (board: BoardDocument) => void
-  publishDraft: (draft: StrokeItem | null) => void
+  publishDraft: (
+    draft: StrokeItem | null,
+    reason?: LiveDraftEndReason,
+  ) => void
   close: () => void
 }
 
@@ -78,13 +93,17 @@ interface LiveSubmitMessage {
   patch: LiveBoardPatch
 }
 
-interface LiveCommitMessage {
-  protocol: typeof LIVE_SESSION_PROTOCOL
-  type: 'commit'
+interface LiveCommit {
   revision: number
   clientId: string
   sequence: number
   patch: LiveBoardPatch
+}
+
+interface LiveCommitsMessage {
+  protocol: typeof LIVE_SESSION_PROTOCOL
+  type: 'commits'
+  commits: LiveCommit[]
 }
 
 interface LiveResyncMessage {
@@ -94,21 +113,20 @@ interface LiveResyncMessage {
   revision: number
 }
 
-interface LiveDraftMessage {
+interface LiveDraftsMessage {
   protocol: typeof LIVE_SESSION_PROTOCOL
-  type: 'draft'
-  clientId: string
-  draft: StrokeItem | null
+  type: 'drafts'
+  updates: LiveDraftUpdate[]
 }
 
 type LiveClientMessage =
   | LiveSubmitMessage
   | LiveResyncMessage
-  | LiveDraftMessage
+  | LiveDraftsMessage
 type LiveHostMessage =
   | LiveCheckpointMessage
-  | LiveCommitMessage
-  | LiveDraftMessage
+  | LiveCommitsMessage
+  | LiveDraftsMessage
 
 interface PendingPatch {
   sequence: number
@@ -117,6 +135,10 @@ interface PendingPatch {
 
 function livePeerId(code: string): string {
   return `${LIVE_PEER_PREFIX}${normalizeTransferCode(code).toLowerCase()}`
+}
+
+function createLiveClientId(): string {
+  return crypto.randomUUID().replaceAll('-', '').slice(0, 12)
 }
 
 function liveErrorType(error: unknown): string | undefined {
@@ -166,28 +188,6 @@ function isInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0
 }
 
-function isStrokeItem(value: unknown): value is StrokeItem {
-  if (!value || typeof value !== 'object') return false
-  const item = value as Partial<StrokeItem>
-  return (
-    item.type === 'stroke' &&
-    typeof item.id === 'string' &&
-    typeof item.createdAt === 'number' &&
-    Array.isArray(item.points) &&
-    item.points.every(
-      (point) =>
-        typeof point.x === 'number' &&
-        typeof point.y === 'number' &&
-        typeof point.pressure === 'number' &&
-        typeof point.t === 'number',
-    ) &&
-    typeof item.color === 'string' &&
-    typeof item.width === 'number' &&
-    typeof item.opacity === 'number' &&
-    typeof item.duration === 'number'
-  )
-}
-
 function hasProtocol(value: unknown): value is {
   protocol: typeof LIVE_SESSION_PROTOCOL
   type: unknown
@@ -203,11 +203,12 @@ function hasProtocol(value: unknown): value is {
 
 function isLiveClientMessage(value: unknown): value is LiveClientMessage {
   if (!hasProtocol(value)) return false
-  if (value.type === 'draft') {
-    const message = value as Partial<LiveDraftMessage>
+  if (value.type === 'drafts') {
+    const message = value as Partial<LiveDraftsMessage>
     return (
-      typeof message.clientId === 'string' &&
-      (message.draft === null || isStrokeItem(message.draft))
+      Array.isArray(message.updates) &&
+      message.updates.length > 0 &&
+      message.updates.every(isLiveDraftUpdate)
     )
   }
   if (value.type === 'resync') {
@@ -229,11 +230,12 @@ function isLiveClientMessage(value: unknown): value is LiveClientMessage {
 
 function isLiveHostMessage(value: unknown): value is LiveHostMessage {
   if (!hasProtocol(value)) return false
-  if (value.type === 'draft') {
-    const message = value as Partial<LiveDraftMessage>
+  if (value.type === 'drafts') {
+    const message = value as Partial<LiveDraftsMessage>
     return (
-      typeof message.clientId === 'string' &&
-      (message.draft === null || isStrokeItem(message.draft))
+      Array.isArray(message.updates) &&
+      message.updates.length > 0 &&
+      message.updates.every(isLiveDraftUpdate)
     )
   }
   if (value.type === 'checkpoint') {
@@ -244,13 +246,21 @@ function isLiveHostMessage(value: unknown): value is LiveHostMessage {
       isBoardDocument(message.board)
     )
   }
-  if (value.type === 'commit') {
-    const message = value as Partial<LiveCommitMessage>
+  if (value.type === 'commits') {
+    const message = value as Partial<LiveCommitsMessage>
     return (
-      isInteger(message.revision) &&
-      typeof message.clientId === 'string' &&
-      isInteger(message.sequence) &&
-      isLiveBoardPatch(message.patch)
+      Array.isArray(message.commits) &&
+      message.commits.length > 0 &&
+      message.commits.every((commit: unknown) => {
+        if (!commit || typeof commit !== 'object') return false
+        const candidate = commit as Partial<LiveCommit>
+        return (
+          isInteger(candidate.revision) &&
+          typeof candidate.clientId === 'string' &&
+          isInteger(candidate.sequence) &&
+          isLiveBoardPatch(candidate.patch)
+        )
+      })
     )
   }
   return false
@@ -276,39 +286,140 @@ function sendMessage(
   }
 }
 
-function createDraftPublisher(
-  clientId: string,
-  send: (message: LiveDraftMessage) => void,
-): { publish: (draft: StrokeItem | null) => void; close: () => void } {
-  let queued: StrokeItem | null | undefined
+interface DraftQueue {
+  enqueue: (update: LiveDraftUpdate) => void
+  close: () => void
+}
+
+function createDraftQueue(
+  connection: DataConnection,
+  onError: (error: unknown) => void,
+  immediateStarts = false,
+): DraftQueue {
+  const queued = new Map<string, LiveDraftUpdate>()
+  let timer: number | undefined
+
+  const schedule = () => {
+    if (timer === undefined) {
+      timer = window.setTimeout(flush, DRAFT_INTERVAL_MS)
+    }
+  }
+
+  const flush = () => {
+    timer = undefined
+    if (queued.size === 0 || !connection.open) return
+    if (connection.dataChannel.bufferedAmount > DRAFT_BUFFER_LIMIT_BYTES) {
+      schedule()
+      return
+    }
+    const message: LiveDraftsMessage = {
+      protocol: LIVE_SESSION_PROTOCOL,
+      type: 'drafts',
+      updates: [...queued.values()],
+    }
+    if (sendMessage(connection, message, onError)) queued.clear()
+    if (queued.size > 0) schedule()
+  }
+
+  return {
+    enqueue(update) {
+      queued.set(
+        update.clientId,
+        coalesceLiveDraftUpdate(queued.get(update.clientId), update),
+      )
+      if (immediateStarts && update.kind === 'start') flush()
+      else schedule()
+    },
+    close() {
+      if (timer !== undefined) window.clearTimeout(timer)
+      timer = undefined
+      queued.clear()
+    },
+  }
+}
+
+interface CommitQueue {
+  enqueue: (commit: LiveCommit) => void
+  close: () => void
+}
+
+function createCommitQueue(
+  connection: DataConnection,
+  onError: (error: unknown) => void,
+): CommitQueue {
+  let queued: LiveCommit[] = []
   let timer: number | undefined
 
   const flush = () => {
     timer = undefined
-    if (queued === undefined) return
-    const draft = queued
-    queued = undefined
-    send({
+    if (queued.length === 0 || !connection.open) return
+    const commits = queued
+    const message: LiveCommitsMessage = {
       protocol: LIVE_SESSION_PROTOCOL,
-      type: 'draft',
-      clientId,
-      draft,
-    })
+      type: 'commits',
+      commits,
+    }
+    if (sendMessage(connection, message, onError)) queued = []
+    if (queued.length > 0) {
+      timer = window.setTimeout(flush, COMMIT_INTERVAL_MS)
+    }
   }
 
   return {
-    publish(draft) {
-      queued = draft
+    enqueue(commit) {
+      queued.push(commit)
       if (timer === undefined) {
-        timer = window.setTimeout(flush, DRAFT_INTERVAL_MS)
+        timer = window.setTimeout(flush, COMMIT_INTERVAL_MS)
       }
     },
     close() {
       if (timer !== undefined) window.clearTimeout(timer)
       timer = undefined
-      queued = undefined
+      queued = []
     },
   }
+}
+
+function createDraftPublisher(
+  clientId: string,
+  send: (update: LiveDraftUpdate) => void,
+): {
+  publish: (draft: StrokeItem | null, reason?: LiveDraftEndReason) => void
+  reset: () => void
+} {
+  let cursor: LiveDraftCursor | null = null
+  return {
+    publish(draft, reason) {
+      const transition = createLiveDraftTransition(
+        cursor,
+        draft,
+        clientId,
+        reason,
+      )
+      cursor = transition.cursor
+      if (transition.update) send(transition.update)
+    },
+    reset() {
+      cursor = null
+    },
+  }
+}
+
+function applyDraftUpdates(
+  drafts: Map<string, StrokeItem>,
+  updates: LiveDraftUpdate[],
+  onDraft: LiveSessionOptions['onDraft'],
+) {
+  const changed = new Set<string>()
+  for (const update of updates) {
+    const current = drafts.get(update.clientId)
+    const next = applyLiveDraftUpdate(current, update)
+    if (next === current) continue
+    changed.add(update.clientId)
+    if (next) drafts.set(update.clientId, next)
+    else drafts.delete(update.clientId)
+  }
+  changed.forEach((clientId) => onDraft?.(clientId, drafts.get(clientId) ?? null))
 }
 
 async function inspectConnection(
@@ -402,13 +513,19 @@ export function hostLiveSession(
   }
 
   const code = generateTransferCode()
-  const hostId = crypto.randomUUID()
+  const hostId = createLiveClientId()
   const peer = new Peer(livePeerId(code), { debug: 1 })
   const connections = new Map<
     DataConnection,
-    { clientId: string; stopDiagnostics: () => void }
+    {
+      clientId: string
+      stopDiagnostics: () => void
+      drafts: DraftQueue
+      commits: CommitQueue
+    }
   >()
   const acknowledgedSequences = new Map<string, number>()
+  const remoteDrafts = new Map<string, StrokeItem>()
   let closed = false
   let boardState = board
   let localBoard = board
@@ -453,38 +570,54 @@ export function hostLiveSession(
     sequence: number,
     patch: LiveBoardPatch,
   ) => {
-    const message: LiveCommitMessage = {
-      protocol: LIVE_SESSION_PROTOCOL,
-      type: 'commit',
+    const commit: LiveCommit = {
       revision,
       clientId,
       sequence,
       patch,
     }
-    connections.forEach((_, connection) => sendToPeer(connection, message))
+    connections.forEach(({ commits }) => commits.enqueue(commit))
   }
 
-  const broadcastDraft = (
-    message: LiveDraftMessage,
+  const broadcastDrafts = (
+    updates: LiveDraftUpdate[],
     except?: DataConnection,
   ) => {
-    connections.forEach((_, connection) => {
-      if (connection !== except) sendToPeer(connection, message)
+    connections.forEach(({ drafts }, connection) => {
+      if (connection === except) return
+      updates.forEach((update) => drafts.enqueue(update))
     })
   }
-  const draftPublisher = createDraftPublisher(hostId, (message) =>
-    broadcastDraft(message),
+  const finishCommittedDraft = (
+    clientId: string,
+    patch: LiveBoardPatch,
+    except?: DataConnection,
+  ) => {
+    const draft = remoteDrafts.get(clientId)
+    if (!draft || !patch.upserts.some((item) => item.id === draft.id)) return
+    const update: LiveDraftUpdate = {
+      kind: 'end',
+      clientId,
+    }
+    applyDraftUpdates(remoteDrafts, [update], options.onDraft)
+    broadcastDrafts([update], except)
+  }
+  const draftPublisher = createDraftPublisher(hostId, (update) =>
+    broadcastDrafts([update]),
   )
 
   const close = () => {
     if (closed) return
     closed = true
-    connections.forEach(({ stopDiagnostics }, connection) => {
+    connections.forEach(({ stopDiagnostics, drafts, commits }, connection) => {
       stopDiagnostics()
+      drafts.close()
+      commits.close()
       connection.close()
     })
     connections.clear()
-    draftPublisher.close()
+    draftPublisher.reset()
+    remoteDrafts.clear()
     peer.destroy()
   }
 
@@ -511,19 +644,39 @@ export function hostLiveSession(
         () => lastSyncedAt,
         options.onDiagnostics,
       )
-      connections.set(connection, { clientId, stopDiagnostics })
+      const onSendError = (error: unknown) => {
+        console.warn(
+          'A live board peer send failed; closing that connection.',
+          error,
+        )
+        connection.close()
+      }
+      connections.set(connection, {
+        clientId,
+        stopDiagnostics,
+        drafts: createDraftQueue(connection, onSendError),
+        commits: createCommitQueue(connection, onSendError),
+      })
       sendCheckpoint(connection, clientId)
       options.onStatus('connected')
     })
     connection.on('data', (data: unknown) => {
-      if (!isLiveClientMessage(data) || data.clientId !== clientId) {
+      if (!isLiveClientMessage(data)) {
         console.warn('Rejected malformed live board data from a peer.')
         connection.close()
         return
       }
-      if (data.type === 'draft') {
-        options.onDraft?.(clientId, data.draft)
-        broadcastDraft(data, connection)
+      if (data.type === 'drafts') {
+        const updates = data.updates.map((update) =>
+          withLiveDraftClientId(update, clientId),
+        )
+        applyDraftUpdates(remoteDrafts, updates, options.onDraft)
+        broadcastDrafts(updates, connection)
+        return
+      }
+      if (data.clientId !== clientId) {
+        console.warn('Rejected live board data with the wrong client identity.')
+        connection.close()
         return
       }
       if (data.type === 'resync') {
@@ -546,6 +699,7 @@ export function hostLiveSession(
       revision += 1
       lastSyncedAt = Date.now()
       acknowledgedSequences.set(clientId, data.sequence)
+      finishCommittedDraft(clientId, data.patch, connection)
       broadcastCommit(clientId, data.sequence, data.patch)
       options.onDocument(boardState)
     })
@@ -555,14 +709,18 @@ export function hostLiveSession(
     connection.on('close', () => {
       const state = connections.get(connection)
       state?.stopDiagnostics()
+      state?.drafts.close()
+      state?.commits.close()
       connections.delete(connection)
-      options.onDraft?.(clientId, null)
-      broadcastDraft({
-        protocol: LIVE_SESSION_PROTOCOL,
-        type: 'draft',
-        clientId,
-        draft: null,
-      })
+      const draft = remoteDrafts.get(clientId)
+      if (draft) {
+        const update: LiveDraftUpdate = {
+          kind: 'cancel',
+          clientId,
+        }
+        applyDraftUpdates(remoteDrafts, [update], options.onDraft)
+        broadcastDrafts([update])
+      }
       if (!closed) {
         options.onStatus(connections.size > 0 ? 'connected' : 'ready')
       }
@@ -591,8 +749,8 @@ export function hostLiveSession(
       lastSyncedAt = Date.now()
       broadcastCommit(hostId, hostSequence, patch)
     },
-    publishDraft(draft) {
-      draftPublisher.publish(draft)
+    publishDraft(draft, reason) {
+      draftPublisher.publish(draft, reason)
     },
     close,
   }
@@ -612,7 +770,7 @@ export function joinLiveSession(
     throw new Error('Enter all 8 characters from the host board.')
   }
 
-  const clientId = crypto.randomUUID()
+  const clientId = createLiveClientId()
   const peer = new Peer({ debug: 1 })
   let connection: DataConnection | undefined
   let closed = false
@@ -621,6 +779,7 @@ export function joinLiveSession(
   let reconnectAttempt = 0
   let reconnectTimer: number | undefined
   let stopDiagnostics: () => void = () => undefined
+  let draftQueue: DraftQueue | undefined
   let revision = 0
   let nextSequence = 1
   let acknowledgedSequence = 0
@@ -630,7 +789,7 @@ export function joinLiveSession(
   let pending: PendingPatch[] = []
   let lastSyncedAt: number | null = null
   let diagnostics = EMPTY_LIVE_DIAGNOSTICS
-  const remoteDraftIds = new Set<string>()
+  const remoteDrafts = new Map<string, StrokeItem>()
 
   const updateDiagnostics = (next: LiveSessionDiagnostics) => {
     diagnostics = next
@@ -691,8 +850,8 @@ export function joinLiveSession(
   }
 
   const clearRemoteDrafts = () => {
-    remoteDraftIds.forEach((id) => options.onDraft?.(id, null))
-    remoteDraftIds.clear()
+    remoteDrafts.forEach((_, id) => options.onDraft?.(id, null))
+    remoteDrafts.clear()
   }
 
   const updateLocalFromConfirmed = (notifyDocument = true) => {
@@ -722,6 +881,9 @@ export function joinLiveSession(
     if (closed || reconnectTimer !== undefined) return
     ready = false
     stopDiagnostics()
+    draftQueue?.close()
+    draftQueue = undefined
+    draftPublisher.reset()
     options.onStatus(everConnected ? 'reconnecting' : 'connecting')
     const delay =
       RECONNECT_DELAYS_MS[
@@ -764,6 +926,13 @@ export function joinLiveSession(
         () => lastSyncedAt,
         updateDiagnostics,
       )
+      draftQueue = createDraftQueue(
+        nextConnection,
+        (error) => {
+          console.warn('A live ink preview could not be sent.', error)
+        },
+        true,
+      )
     })
     nextConnection.on('data', (data: unknown) => {
       if (connection !== nextConnection || !isLiveHostMessage(data)) {
@@ -796,46 +965,84 @@ export function joinLiveSession(
         return
       }
 
-      if (data.type === 'draft') {
-        if (data.draft) remoteDraftIds.add(data.clientId)
-        else remoteDraftIds.delete(data.clientId)
-        options.onDraft?.(data.clientId, data.draft)
+      if (data.type === 'drafts') {
+        applyDraftUpdates(remoteDrafts, data.updates, options.onDraft)
         return
       }
 
-      if (data.revision <= revision) {
-        if (data.clientId === clientId) {
+      let expectedRevision = revision
+      for (const commit of data.commits) {
+        if (commit.revision <= expectedRevision) continue
+        if (!confirmedBoard || commit.revision !== expectedRevision + 1) {
+          ready = false
+          sendResync()
+          return
+        }
+        expectedRevision = commit.revision
+      }
+
+      let acceptedCommit = false
+      let notifyDocument = false
+      let pendingChanged = false
+      for (const commit of data.commits) {
+        if (commit.revision <= revision) {
+          if (commit.clientId === clientId) {
+            acknowledgedSequence = Math.max(
+              acknowledgedSequence,
+              commit.sequence,
+            )
+            pending = pending.filter(
+              (entry) => entry.sequence > acknowledgedSequence,
+            )
+            pendingChanged = true
+          }
+          continue
+        }
+
+        revision = commit.revision
+        const currentConfirmed = confirmedBoard
+        if (!currentConfirmed) {
+          ready = false
+          sendResync()
+          return
+        }
+        confirmedBoard = applyLiveBoardPatch(currentConfirmed, commit.patch)
+        acceptedCommit = true
+        notifyDocument ||= commit.clientId !== clientId
+        if (commit.clientId === clientId) {
           acknowledgedSequence = Math.max(
             acknowledgedSequence,
-            data.sequence,
+            commit.sequence,
           )
           pending = pending.filter(
             (entry) => entry.sequence > acknowledgedSequence,
           )
-          reportPending()
+          pendingChanged = true
         }
-        return
+        const draft = remoteDrafts.get(commit.clientId)
+        if (
+          draft &&
+          commit.patch.upserts.some((item) => item.id === draft.id)
+        ) {
+          applyDraftUpdates(
+            remoteDrafts,
+            [
+              {
+                kind: 'end',
+                clientId: commit.clientId,
+              },
+            ],
+            options.onDraft,
+          )
+        }
       }
-      if (data.revision !== revision + 1 || !confirmedBoard) {
-        ready = false
-        sendResync()
-        return
+      if (pendingChanged) reportPending()
+      if (acceptedCommit) {
+        lastSyncedAt = Date.now()
+        updateLocalFromConfirmed(notifyDocument)
+      } else if (pendingChanged) {
+        updateLocalFromConfirmed(false)
       }
-
-      revision = data.revision
-      confirmedBoard = applyLiveBoardPatch(confirmedBoard, data.patch)
-      if (data.clientId === clientId) {
-        acknowledgedSequence = Math.max(
-          acknowledgedSequence,
-          data.sequence,
-        )
-        pending = pending.filter(
-          (entry) => entry.sequence > acknowledgedSequence,
-        )
-        reportPending()
-      }
-      lastSyncedAt = Date.now()
-      updateLocalFromConfirmed(data.clientId !== clientId)
       flushPending()
     })
     nextConnection.on('error', (error) => {
@@ -859,7 +1066,8 @@ export function joinLiveSession(
     closed = true
     clearReconnectTimer()
     stopDiagnostics()
-    draftPublisher.close()
+    draftQueue?.close()
+    draftPublisher.reset()
     clearRemoteDrafts()
     connection?.close()
     peer.destroy()
@@ -876,11 +1084,9 @@ export function joinLiveSession(
   })
   peer.on('disconnected', scheduleReconnect)
 
-  const draftPublisher = createDraftPublisher(clientId, (message) => {
+  const draftPublisher = createDraftPublisher(clientId, (update) => {
     if (!ready || !connection?.open) return
-    sendMessage(connection, message, (error) => {
-      console.warn('A live ink preview could not be sent.', error)
-    })
+    draftQueue?.enqueue(update)
   })
 
   return {
@@ -895,8 +1101,8 @@ export function joinLiveSession(
       reportPending()
       flushPending()
     },
-    publishDraft(draft) {
-      draftPublisher.publish(draft)
+    publishDraft(draft, reason) {
+      draftPublisher.publish(draft, reason)
     },
     close,
   }

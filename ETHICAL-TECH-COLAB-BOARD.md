@@ -277,7 +277,7 @@ Acceptance criteria:
 - Generated themes survive reload, can be exported/imported, and never alter
   board content.
 
-## Delivery Status Through v0.13.1
+## Delivery Status Through v0.14.0
 
 ### Completed — Replay Studio and screensaver pack
 
@@ -301,10 +301,9 @@ Acceptance criteria:
   size. This avoids unverified WebHID report mappings; the Windows-managed pen
   top button is likewise not exposed to browser applications.
 - Live boards are explicit opt-in peer sessions. A host shares an
-  eight-character code, sends the initial board, and relays later snapshots over
-  encrypted WebRTC. Local-only remains the default.
-- Live synchronization intentionally uses latest-received snapshot semantics.
-  The UI warns that simultaneous conflicting edits can replace one another.
+  eight-character code and sends the initial board over encrypted WebRTC.
+  Local-only remains the default. The original snapshot transport in this phase
+  was superseded by ordered operations in v0.13.1.
 
 ### Completed polish — v0.12.2
 
@@ -355,7 +354,29 @@ Acceptance criteria:
 - A representative update on a board containing a 250 KB embedded image is
   regression-tested at less than one percent of the previous snapshot payload.
 
-## Remaining Priorities — Post-v0.13.1
+### Completed seven-party live optimization — v0.14.0
+
+- Live protocol v3 keeps the durable host-sequenced operation model while
+  replacing cumulative in-progress strokes with explicit start, compact
+  quantized point chunks, and end/cancel updates.
+- Each destination receives at most one coalesced preview packet per 50 ms tick.
+  WebRTC `bufferedAmount` backpressure retains and replaces ephemeral previews
+  without dropping durable operations.
+- Ordered commits produced in the same 16 ms window share one packet. In the
+  seven-device durable burst this reduced host messages from 42 to six while
+  every device converged in 114 ms or less on the direct local route.
+- Seven isolated browser contexts converged after simultaneous drawing, after a
+  note was committed during the drawing burst, and after one artist went offline
+  mid-stroke and reconnected.
+- A dense 120-point stroke used about 5.4 KB of preview upload and 26.8 KB of host
+  preview fan-out. Seven simultaneous 48-point strokes used about 2.7–3.0 KB of
+  preview upload per participant and 64 KB of host preview egress.
+- Seven participants are the validated working size. The host should use an
+  unmetered desktop connection; larger or TURN-relayed sessions need
+  network-specific acceptance testing because star-topology bytes still grow
+  with both artists and recipients.
+
+## Remaining Priorities — Post-v0.14.0
 
 There is no open P0 blocking normal whiteboard use. The next releases should
 finish the original delight promise and harden observed workflows without
@@ -408,8 +429,8 @@ desktop design-tool inspector by default.
 
 ### Recommended release order
 
-1. **v0.14.0:** Puzzle Explosion and Drawing Explosion.
-2. **v0.14.x:** real-device Spatial/Surface fixes discovered during acceptance.
+1. **v0.15.0:** Puzzle Explosion and Drawing Explosion.
+2. **v0.15.x:** real-device Spatial/Surface fixes discovered during acceptance.
 3. **Later maintenance:** one bounded pass on the mobile QR issue.
 4. **Research only:** multi-object editing and richer collaboration after real
    workshop demand is documented.

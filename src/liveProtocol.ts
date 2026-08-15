@@ -7,7 +7,7 @@ import type {
   TimelineEvent,
 } from './types'
 
-export const LIVE_SESSION_PROTOCOL = 'ethical-tech-colab-live-v2'
+export const LIVE_SESSION_PROTOCOL = 'ethical-tech-colab-live-v3'
 
 export type LiveTimelineEvent =
   | {

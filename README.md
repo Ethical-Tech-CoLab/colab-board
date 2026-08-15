@@ -4,7 +4,7 @@
 
 A local-first spatial thinking surface for touch displays, classrooms, studios, and collaborative workshops. It runs entirely in the browser and can be hosted on GitHub Pages without a server.
 
-## Current release — v0.13.1
+## Current release — v0.14.0
 
 - Pressure-aware pen and highlighter input with Surface Pen rear-eraser and
   barrel-button canvas movement
@@ -48,8 +48,11 @@ A local-first spatial thinking surface for touch displays, classrooms, studios, 
 - Host-sequenced live operations merge edits to different objects without
   retransmitting the complete board; acknowledgements, queued retries, and
   recovery checkpoints prevent silent state loss after a connection interruption
-- Throttled live ink previews appear before pointer-up while durable strokes still
-  commit once, keeping replay, undo, autosave, and network traffic bounded
+- Live protocol v3 sends quantized point deltas instead of repeatedly sending the
+  complete in-progress stroke, batches host fan-out and durable commits, and
+  coalesces stale previews under WebRTC backpressure
+- Live ink previews appear before pointer-up while durable strokes still commit
+  once, keeping replay, undo, and autosave exact
 - Live-session diagnostics identify direct versus TURN-relayed routes, round-trip
   time, and unacknowledged changes
 - Facilitator preview and explicit accept/reject before incoming content is
@@ -103,6 +106,44 @@ Edits to different objects merge in host order. If participants change the same
 object concurrently, the latest host-ordered change wins; this intentionally
 avoids CRDT and account/server complexity while preventing unrelated work from
 being dropped.
+
+### Live-session scale and data use
+
+v0.14.0 is acceptance-tested with one host and six participants in isolated
+browser contexts. Seven concurrent durable edits converged on every device in
+114 ms or less on a direct local route. Commit batching reduced that burst from
+42 host messages to six. Concurrent drawing, a durable note added during the
+drawing burst, and a participant going offline mid-stroke all recovered to the
+same item and timeline counts on every device.
+
+Traffic depends on point density, active drawing time, participant count, and
+whether WebRTC uses a direct or TURN-relayed route. Representative application
+payload measurements, excluding IP/UDP/DTLS/SCTP overhead, are:
+
+- A dense 120-point, 2.4-second live stroke used about 5.4 KB of preview upload
+  from the artist, 5.4 KB of preview download per passive participant, and
+  26.8 KB of host preview fan-out.
+- Seven simultaneous 48-point strokes over about one second used roughly
+  2.7–3.0 KB of preview upload and 10–11 KB of preview download per participant;
+  the host sent about 64 KB of previews.
+- Seven simultaneous sticky-note commits used about 475 B of participant upload.
+  Each participant received one roughly 3.1 KB commit bundle; the host sent six
+  bundles totaling about 18.7 KB.
+
+Continuous drawing is an intentionally harsh upper bound. For the seven-person
+all-drawing preview sample, the measured rate extrapolates to roughly 45 MB/hour
+per participant and 210 MB/hour of host egress before durable stroke commits.
+Real network accounting is commonly 10–25% higher, and each completed stroke
+adds a durable patch whose size grows with its final point count. At a
+hypothetical $10/GB, that preview-only stress rate is about $0.45 per participant
+hour and $2.10 per host hour. Normal workshops should be substantially lower
+because participants spend most of their time talking, moving notes, or idle.
+
+Seven participants are validated and are the recommended current working size.
+The star topology still makes host bytes grow with both active artists and
+recipients, even though message batching removes most per-author packet fan-out.
+Use a desktop or unmetered connection for the host, especially on a TURN relay.
+Larger sessions should be benchmarked on their real network before facilitation.
 
 ### QR transfer requirements
 

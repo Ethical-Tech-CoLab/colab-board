@@ -77,7 +77,10 @@ interface SpatialBoardProps {
   onNoteEditingChange: (editing: boolean) => void
   onSelectionChange: (id: string | null) => void
   onActivity: () => void
-  onDraftChange: (draft: StrokeItem | null) => void
+  onDraftChange: (
+    draft: StrokeItem | null,
+    reason?: 'end' | 'cancel',
+  ) => void
 }
 
 interface SceneRuntime {
@@ -1162,7 +1165,10 @@ export default function SpatialBoard({
             draftFrame = undefined
           }
           clearDraft(sceneRuntime)
-          authoringRef.current.onDraftChange(null)
+          authoringRef.current.onDraftChange(
+            null,
+            cancelled ? 'cancel' : 'end',
+          )
           interaction = null
           queueMicrotask(() => {
             controls.enabled = true
@@ -1230,7 +1236,7 @@ export default function SpatialBoard({
           draftFrame = undefined
         }
         clearDraft(sceneRuntime)
-        authoringRef.current.onDraftChange(null)
+        authoringRef.current.onDraftChange(null, 'cancel')
         interaction = null
         controls.enabled = true
       }
@@ -1316,7 +1322,7 @@ export default function SpatialBoard({
 
       return () => {
         renderer.setAnimationLoop(null)
-        authoringRef.current.onDraftChange(null)
+        authoringRef.current.onDraftChange(null, 'cancel')
         if (draftFrame !== undefined) cancelAnimationFrame(draftFrame)
         renderer.domElement.removeEventListener('pointerdown', pointerDown, true)
         renderer.domElement.removeEventListener('pointermove', pointerMove, true)

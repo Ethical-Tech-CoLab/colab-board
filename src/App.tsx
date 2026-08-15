@@ -478,9 +478,12 @@ function App() {
     notify('Live board session ended. This board is local again.', 'info')
   }, [notify])
 
-  const publishLiveDraft = useCallback((draft: StrokeItem | null) => {
-    liveSessionRef.current?.publishDraft(draft)
-  }, [])
+  const publishLiveDraft = useCallback(
+    (draft: StrokeItem | null, reason?: 'end' | 'cancel') => {
+      liveSessionRef.current?.publishDraft(draft, reason)
+    },
+    [],
+  )
 
   useEffect(() => {
     if (!loaded || !liveSessionRef.current) return

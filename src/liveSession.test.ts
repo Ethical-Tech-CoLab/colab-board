@@ -40,7 +40,7 @@ describe('live session operation protocol', () => {
     const next = withNote(board, note)
     const patch = createLiveBoardPatch(board, next, 'patch-1', 200)
 
-    expect(LIVE_SESSION_PROTOCOL).toBe('ethical-tech-colab-live-v2')
+    expect(LIVE_SESSION_PROTOCOL).toBe('ethical-tech-colab-live-v3')
     expect(patch).toMatchObject({
       id: 'patch-1',
       sentAt: 200,

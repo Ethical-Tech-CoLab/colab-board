@@ -56,7 +56,10 @@ interface CanvasBoardProps {
   onFilesDropped: (files: FileList, point: { x: number; y: number }) => void
   onStrokeWidthDelta: (delta: number) => void
   onActivity: () => void
-  onDraftChange: (draft: StrokeItem | null) => void
+  onDraftChange: (
+    draft: StrokeItem | null,
+    reason?: 'end' | 'cancel',
+  ) => void
 }
 
 interface CanvasSize {
@@ -254,7 +257,7 @@ export default function CanvasBoard({
   useEffect(
     () => () => {
       draftRef.current = null
-      onDraftChange(null)
+      onDraftChange(null, 'cancel')
     },
     [onDraftChange],
   )
@@ -374,7 +377,7 @@ export default function CanvasBoard({
     drawInteraction.current = null
     draftRef.current = null
     setDraft(null)
-    onDraftChange(null)
+    onDraftChange(null, 'cancel')
   }
 
   const eraseAt = (x: number, y: number) => {
@@ -449,7 +452,7 @@ export default function CanvasBoard({
         seed: Math.floor(Math.random() * 0xffffffff),
       }
       const nextDraft: StrokeItem = {
-        id: `draft-${crypto.randomUUID()}`,
+        id: crypto.randomUUID(),
         type: 'stroke',
         points: [firstPoint],
         color,
@@ -577,7 +580,10 @@ export default function CanvasBoard({
     onDraftChange(nextDraft)
   }
 
-  const finishPointer = (event: ReactPointerEvent<HTMLElement>) => {
+  const finishPointer = (
+    event: ReactPointerEvent<HTMLElement>,
+    cancelled = false,
+  ) => {
     pointers.current.delete(event.pointerId)
 
     if (gesture.current) {
@@ -615,7 +621,7 @@ export default function CanvasBoard({
             ]
           : interaction.points
       const item: StrokeItem = {
-        id: crypto.randomUUID(),
+        id: draftRef.current?.id ?? crypto.randomUUID(),
         type: 'stroke',
         points,
         color,
@@ -626,11 +632,11 @@ export default function CanvasBoard({
         effect: inkStyle === 'sparkle' ? 'sparkle' : undefined,
         seed: inkStyle === 'sparkle' ? interaction.seed : undefined,
       }
-      onAddItem(item, strokeAsEvent(item).at)
+      if (!cancelled) onAddItem(item, strokeAsEvent(item).at)
       drawInteraction.current = null
       draftRef.current = null
       setDraft(null)
-      onDraftChange(null)
+      onDraftChange(null, cancelled ? 'cancel' : 'end')
     }
   }
 
@@ -737,7 +743,7 @@ export default function CanvasBoard({
           (eraseInteraction.current === event.pointerId ||
             panInteraction.current?.pointerId === event.pointerId)
         if (!capturesTouch && !capturesPen) return
-        finishPointer(event)
+        finishPointer(event, true)
         event.preventDefault()
         event.stopPropagation()
       }}
@@ -762,7 +768,7 @@ export default function CanvasBoard({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={finishPointer}
-        onPointerCancel={finishPointer}
+        onPointerCancel={(event) => finishPointer(event, true)}
         onDoubleClick={(event) => {
           if (tool !== 'select') return
           const point = pointFromClient(event.clientX, event.clientY)
