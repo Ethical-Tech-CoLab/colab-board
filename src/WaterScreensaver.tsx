@@ -299,7 +299,8 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
     const waterMesh = new THREE.Mesh(geometry, material)
     scene.add(waterMesh)
 
-    const clock = new THREE.Clock()
+    const startedAt = performance.now()
+    const elapsedSeconds = () => (performance.now() - startedAt) / 1000
     const raycaster = new THREE.Raycaster()
     const pointer = new THREE.Vector2()
     const lightPosition = new THREE.Vector3()
@@ -350,7 +351,7 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
       waves.push({
         x: clamp(x, -1, 1),
         y: clamp(y, -1, 1),
-        startTime: clock.getElapsedTime(),
+        startTime: elapsedSeconds(),
         amplitude,
       })
       if (waves.length > MAX_WAVES) waves.splice(0, waves.length - MAX_WAVES)
@@ -418,7 +419,7 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
 
     const animate = () => {
       if (destroyed) return
-      const time = clock.getElapsedTime()
+      const time = elapsedSeconds()
       shimmerLight.position.set(
         Math.sin(time * 0.63) * 0.86,
         0.78 + Math.sin(time * 0.41) * 0.08,

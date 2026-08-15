@@ -120,7 +120,7 @@ export default function ImageInspector({
             aria-label="Width (aspect-ratio locked)"
             min={IMAGE_MIN_SIZE}
             max={IMAGE_MAX_SIZE}
-            step={8}
+            step={1}
             value={widthPx}
             onChange={(event) => handleWidthChange(Number(event.target.value))}
             onPointerUp={commit}

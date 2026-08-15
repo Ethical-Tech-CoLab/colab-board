@@ -181,7 +181,7 @@ remains the offline fallback.
 
 ### Deferred transfer defect
 
-- [GitHub issue #1](https://github.com/Ethical-Tech-CoLab/ethical-tech-colab-board/issues/1):
+- [GitHub issue #1](https://github.com/Ethical-Tech-CoLab/colab-board/issues/1):
   mobile QR handoff can intermittently remain on the connected modal even though
   entering the same transfer code completes immediately. Keep code entry and
   project download as the supported workarounds until this is prioritized.
@@ -277,7 +277,7 @@ Acceptance criteria:
 - Generated themes survive reload, can be exported/imported, and never alter
   board content.
 
-## Delivery Status Through v0.14.0
+## Delivery Status Through v0.15.0
 
 ### Completed — Replay Studio and screensaver pack
 
@@ -376,7 +376,33 @@ Acceptance criteria:
   network-specific acceptance testing because star-topology bytes still grow
   with both artists and recipients.
 
-## Remaining Priorities — Post-v0.14.0
+### Completed sharing, media, and screensaver hardening — v0.15.0
+
+- Hosts can copy a full `#session=CODE` link. Opening it starts one automatic
+  join attempt, removes the consumed session intent from the address, preserves
+  unrelated URL parameters, and offers inline recovery for malformed or failed
+  codes.
+- Authoritative checkpoints now always reconcile the first join while
+  content-identical reconnects preserve local undo and selection state. A
+  two-origin WebRTC browser acceptance test confirmed a late join with a stroke
+  and edited embedded image, followed by a live host update on a direct route.
+- Selected images have transparency and aspect-ratio-locked width controls.
+  Preview changes produce one durable undoable commit, survive an immediate
+  drag, and persist across Canvas, Spatial, replay, export, autosave, and live
+  synchronization.
+- Session Replay and Ghost Trails pre-sort once, draw outside React's frame
+  render path, avoid repeated canvas backing-store allocation, and cancel work
+  before closing. Screensavers snapshot the activation camera and scene mode so
+  idle playback reflects the current board window instead of its opening state.
+- Water Surface adds a lazy-loaded 512-by-512 Three.js wave plane, up to twelve
+  interacting waves, board-object ripple anchors, fitted board reflections, and
+  real-time lighting. It removes polling redraws, cleans up GPU resources, honors
+  reduced motion, and falls back to the current board plus a lightweight water
+  sheen when WebGL is unavailable.
+- Native Settings selects use theme-aware colors and forced-color focus
+  treatment, preventing unreadable white-on-white options.
+
+## Remaining Priorities — Post-v0.15.0
 
 There is no open P0 blocking normal whiteboard use. The next releases should
 finish the original delight promise and harden observed workflows without
@@ -406,7 +432,7 @@ do not expand the tool model during this pass.
 
 ### P2 — Bounded mobile QR reliability pass
 
-[GitHub issue #1](https://github.com/Ethical-Tech-CoLab/ethical-tech-colab-board/issues/1)
+[GitHub issue #1](https://github.com/Ethical-Tech-CoLab/colab-board/issues/1)
 remains open because a camera-opened mobile receiver can intermittently stay at
 **Connected...** while manual code entry succeeds. Add state-transition
 diagnostics and test mobile page resume, payload acknowledgement, and timeout

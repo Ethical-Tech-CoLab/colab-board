@@ -4,7 +4,7 @@
 
 A local-first spatial thinking surface for touch displays, classrooms, studios, and collaborative workshops. It runs entirely in the browser and can be hosted on GitHub Pages without a server.
 
-## Current release — v0.14.0
+## Current release — v0.15.0
 
 - Pressure-aware pen and highlighter input with Surface Pen rear-eraser and
   barrel-button canvas movement
@@ -19,7 +19,8 @@ A local-first spatial thinking surface for touch displays, classrooms, studios, 
   drag-and-drop at an adjustable work-plane depth
 - Spatial selection, orbit, Surface Pen barrel movement, Surface Dial ink-size
   adjustment, and responsive controls that stay clear of the drawing rail
-- Images, eraser, selection, undo, and redo
+- Images with selected-image transparency and aspect-ratio-locked sizing, plus
+  eraser, selection, undo, and redo
 - IndexedDB autosave with portable JSON project files and PNG export
 - Branded PNG exports with a visible live-site link and scannable return QR code
 - Export footers include the active theme logo or mark and size the return QR to
@@ -29,6 +30,9 @@ A local-first spatial thinking surface for touch displays, classrooms, studios, 
   Infinite Evolution treatments plus six selectable ending effects
 - Continuously moving Session Replay, Ink Drift, CoLab Galaxy, Aurora Flow, and
   Idea Constellation screensavers
+- A lazy-loaded Three.js Water Surface screensaver with fitted board reflections,
+  object-anchored ripples, interacting waves, live lighting, reduced-motion
+  behavior, and a lightweight 2D fallback when WebGL is unavailable
 - WarGames Terminal, faithfully adapted from the Ethical Tech CoLab
   [War-Games](https://github.com/Ethical-Tech-CoLab/War-Games) design system,
   and a moving Retro Snake screensaver
@@ -45,6 +49,8 @@ A local-first spatial thinking surface for touch displays, classrooms, studios, 
   code or camera-scanned QR card
 - Explicitly opt-in live peer boards with host/join codes, encrypted WebRTC
   transport, initial host checkpoint, connection status, and local-only default
+- Shareable `#session=CODE` links that auto-join once, preserve unrelated URL
+  parameters, and provide recoverable validation when a code is malformed
 - Host-sequenced live operations merge edits to different objects without
   retransmitting the complete board; acknowledgements, queued retries, and
   recovery checkpoints prevent silent state loss after a connection interruption
@@ -76,6 +82,8 @@ A local-first spatial thinking surface for touch displays, classrooms, studios, 
   adjustment, with Ctrl-wheel zoom retained in ink-size mode
 - Streamlined header actions with media insertion kept in the left tool rail
 - Smooth replay fade-out at the end of manual and idle Session Replay
+- Replay and Ghost Trails draw without per-frame React renders or timeline
+  sorting, exit immediately on input, and begin from the current camera and scene
 
 ## Run locally
 

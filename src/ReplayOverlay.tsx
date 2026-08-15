@@ -1,4 +1,6 @@
 import {
+  lazy,
+  Suspense,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -15,7 +17,6 @@ import {
 } from './board'
 import type { BrandTheme } from './branding'
 import { drawScene, type ImageCache } from './render'
-import WaterScreensaver from './WaterScreensaver'
 import type {
   BoardDocument,
   Camera,
@@ -24,6 +25,8 @@ import type {
   SceneMode,
   ScreensaverMode,
 } from './types'
+
+const WaterScreensaver = lazy(() => import('./WaterScreensaver'))
 
 interface ReplayOverlayProps {
   document: BoardDocument
@@ -446,7 +449,13 @@ export default function ReplayOverlay({
           </div>
         </div>
       ) : mode === 'water' ? (
-        <WaterScreensaver document={document} theme={theme} />
+        <Suspense
+          fallback={
+            <div className="water-scene" aria-label="Loading water surface" />
+          }
+        >
+          <WaterScreensaver document={document} theme={theme} />
+        </Suspense>
       ) : (
         <div className="snake-scene">
           <div className="snake-title">

@@ -960,10 +960,11 @@ export function joinLiveSession(
         sentThroughSequence = acknowledgedSequence
         lastSyncedAt = Date.now()
         ready = true
+        const initialCheckpoint = !everConnected
         everConnected = true
         reconnectAttempt = 0
         options.onStatus('connected')
-        updateLocalFromConfirmed(true, true)
+        updateLocalFromConfirmed(true, initialCheckpoint)
         flushPending()
         return
       }
