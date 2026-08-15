@@ -2,7 +2,7 @@ import QRCode from 'qrcode'
 import type { BrandTheme } from './branding'
 
 export const BOARD_SITE_URL =
-  'https://ethical-tech-colab.github.io/ethical-tech-colab-board/'
+  'https://ethical-tech-colab.github.io/colab-board/'
 const FOOTER_LINE_HEIGHT = 24
 
 type ExportBrand = Pick<
@@ -217,7 +217,7 @@ export async function createBrandedPng(
     }
     context.fillText('https://ethical-tech-colab.github.io/', copyX, linkY)
     context.fillText(
-      'ethical-tech-colab-board/',
+      'colab-board/',
       copyX,
       linkY + 14 * scale,
     )

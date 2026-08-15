@@ -92,6 +92,7 @@ export interface ImageItem extends ItemBase {
   height: number
   src: string
   name: string
+  opacity?: number
 }
 
 export type BoardItem = StrokeItem | NoteItem | ImageItem

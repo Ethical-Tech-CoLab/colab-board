@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getFooterQrSize } from './exportImage'
+import { BOARD_SITE_URL, getFooterQrSize } from './exportImage'
 
 describe('branded export footer', () => {
   it('matches QR height to the rendered footer line count', () => {
@@ -10,5 +10,9 @@ describe('branded export footer', () => {
   it('scales the footer QR with high-density exports', () => {
     expect(getFooterQrSize(2, 4)).toBe(192)
     expect(getFooterQrSize(2, 5)).toBe(240)
+  })
+
+  it('BOARD_SITE_URL points to the colab-board repository path', () => {
+    expect(BOARD_SITE_URL).toBe('https://ethical-tech-colab.github.io/colab-board/')
   })
 })

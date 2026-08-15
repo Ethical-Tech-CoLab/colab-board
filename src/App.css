@@ -768,6 +768,180 @@
   background: color-mix(in srgb, var(--brand-accent) 8%, transparent);
 }
 
+/* ---- Image inspector (canvas mode selected image) ---- */
+
+.image-inspector {
+  position: absolute;
+  z-index: 13;
+  top: calc(var(--topbar-height) + 16px);
+  right: calc(18px + var(--settings-offset));
+  width: min(272px, calc(100% - 36px));
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--brand-accent) 25%, transparent);
+  border-radius: 17px;
+  color: var(--brand-foreground);
+  background: color-mix(
+    in srgb,
+    var(--brand-canvas) var(--overlay-opacity, 88%),
+    transparent
+  );
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(22px);
+}
+
+.image-inspector > header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 13px 11px;
+  border-bottom: 1px solid color-mix(in srgb, var(--brand-accent) 14%, transparent);
+}
+
+.image-inspector-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--brand-accent);
+  background: color-mix(in srgb, var(--brand-accent) 12%, transparent);
+}
+
+.image-inspector-icon svg {
+  width: 17px;
+}
+
+.image-inspector header > span:nth-child(2) {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+}
+
+.image-inspector header small {
+  color: var(--brand-accent);
+  font-size: 8px;
+  letter-spacing: 0.14em;
+}
+
+.image-inspector header strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.image-inspector header > button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  color: var(--brand-muted);
+  background: transparent;
+}
+
+.image-inspector header > button:hover {
+  color: var(--brand-foreground);
+  background: color-mix(in srgb, var(--brand-accent) 10%, transparent);
+}
+
+.image-inspector header > button svg {
+  width: 16px;
+}
+
+.image-inspector-ranges {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px 8px;
+}
+
+.image-inspector-ranges label {
+  display: grid;
+  gap: 5px;
+}
+
+.image-inspector-ranges label > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--brand-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.image-inspector-ranges label svg {
+  width: 12px;
+}
+
+.image-inspector-ranges output {
+  margin-left: auto;
+  color: var(--brand-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.image-inspector-ranges input {
+  width: 100%;
+  accent-color: var(--brand-accent);
+}
+
+.image-inspector-size-hint {
+  margin: 0;
+  color: var(--brand-muted);
+  font-size: 9px;
+}
+
+.image-inspector-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  padding: 8px 14px 14px;
+}
+
+.image-inspector-actions button {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid color-mix(in srgb, var(--brand-accent) 18%, transparent);
+  border-radius: 9px;
+  color: var(--brand-foreground);
+  background: color-mix(in srgb, var(--brand-accent) 7%, transparent);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.image-inspector-actions button:hover {
+  border-color: color-mix(in srgb, var(--brand-accent) 42%, transparent);
+  background: color-mix(in srgb, var(--brand-accent) 13%, transparent);
+}
+
+.image-inspector-actions button.danger {
+  border-color: color-mix(in srgb, var(--brand-danger) 28%, transparent);
+  color: var(--brand-danger);
+  background: color-mix(in srgb, var(--brand-danger) 7%, transparent);
+}
+
+.image-inspector-actions button.danger:hover {
+  border-color: color-mix(in srgb, var(--brand-danger) 52%, transparent);
+  background: color-mix(in srgb, var(--brand-danger) 14%, transparent);
+}
+
+.image-inspector-actions svg {
+  width: 14px;
+}
+
+@media (max-width: 700px) {
+  .image-inspector {
+    top: calc(var(--topbar-height) + 8px);
+    right: calc(8px + var(--settings-offset));
+  }
+}
+
 @media (max-width: 700px) {
   .scene-mode-switcher {
     top: calc(var(--topbar-height) + 10px);

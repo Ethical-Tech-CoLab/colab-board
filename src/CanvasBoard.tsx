@@ -47,6 +47,7 @@ interface CanvasBoardProps {
   dialMode: DialMode
   selectedId: string | null
   remoteDrafts: StrokeItem[]
+  imageInspectorPreview?: ImageItem | null
   onAddItem: (item: BoardItem, eventAt?: number) => void
   onUpdateItem: (item: BoardItem) => void
   onDeleteItem: (id: string) => void
@@ -205,6 +206,7 @@ export default function CanvasBoard({
   dialMode,
   selectedId,
   remoteDrafts,
+  imageInspectorPreview,
   onAddItem,
   onUpdateItem,
   onDeleteItem,
@@ -319,7 +321,11 @@ export default function CanvasBoard({
       ? document.items.map((item) =>
           item.id === previewItem.id ? previewItem : item,
         )
-      : document.items
+      : imageInspectorPreview
+        ? document.items.map((item) =>
+            item.id === imageInspectorPreview.id ? imageInspectorPreview : item,
+          )
+        : document.items
     drawScene(
       context,
       size.width,
@@ -343,6 +349,7 @@ export default function CanvasBoard({
     document.items,
     document.watermark,
     draft,
+    imageInspectorPreview,
     imageRevision,
     previewItem,
     remoteDrafts,

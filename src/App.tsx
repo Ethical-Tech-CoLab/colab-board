@@ -50,6 +50,7 @@ import {
 } from 'lucide-react'
 import CanvasBoard from './CanvasBoard'
 import DeviceTransferDialog from './DeviceTransferDialog'
+import ImageInspector from './ImageInspector'
 import LiveSessionDialog, {
   type LiveSessionView,
 } from './LiveSessionDialog'
@@ -102,6 +103,7 @@ import type {
   BoardItem,
   BrandThemeId,
   Camera,
+  ImageItem,
   Preferences,
   ReplayEndEffect,
   ReplayStyle,
@@ -316,6 +318,7 @@ function App() {
     useState<ThemeItConfig | null>(loadCustomTheme)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [spatialPreview, setSpatialPreview] = useState<BoardItem | null>(null)
+  const [canvasImagePreview, setCanvasImagePreview] = useState<ImageItem | null>(null)
   const [spatialNoteEditing, setSpatialNoteEditing] = useState(false)
   const [spatialWorkPlaneDepth, setSpatialWorkPlaneDepth] = useState(0)
   const [saveState, setSaveState] = useState<SaveState>('loading')
@@ -1316,12 +1319,16 @@ function App() {
               dialMode={preferences.dialMode}
               selectedId={selectedId}
               remoteDrafts={Object.values(remoteDrafts)}
+              imageInspectorPreview={canvasImagePreview}
               onAddItem={addItem}
               onUpdateItem={updateItem}
               onDeleteItem={deleteItem}
               onCameraChange={setCamera}
               onCameraSettled={recordCamera}
-              onSelectionChange={setSelectedId}
+              onSelectionChange={(id) => {
+                setSelectedId(id)
+                setCanvasImagePreview(null)
+              }}
               onFilesDropped={addImageFiles}
               onStrokeWidthDelta={(delta) =>
                 setPreferences((current) => ({
@@ -1436,6 +1443,27 @@ function App() {
               }}
               onClose={() => {
                 setSpatialPreview(null)
+                setSelectedId(null)
+              }}
+            />
+          )}
+
+          {preferences.sceneMode === 'canvas' &&
+            tool === 'select' &&
+            selectedSpatialItem?.type === 'image' && (
+            <ImageInspector
+              item={selectedSpatialItem as ImageItem}
+              onPreview={setCanvasImagePreview}
+              onCommit={(item) => {
+                setCanvasImagePreview(null)
+                updateItem(item)
+              }}
+              onDelete={() => {
+                setCanvasImagePreview(null)
+                deleteItem(selectedSpatialItem.id)
+              }}
+              onClose={() => {
+                setCanvasImagePreview(null)
                 setSelectedId(null)
               }}
             />

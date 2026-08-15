@@ -115,6 +115,7 @@ export function spatialItemVersion(item: BoardItem): string {
     item.name,
     item.src.length,
     item.src.slice(-24),
+    item.opacity ?? 1,
     transform,
   ])
 }

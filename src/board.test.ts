@@ -337,3 +337,65 @@ describe('swappable branding', () => {
     )
   })
 })
+
+import {
+  fitImage,
+  getImageOpacity,
+  withImageEdit,
+} from './board'
+import type { ImageItem } from './types'
+
+const testImage: ImageItem = {
+  id: 'image-1',
+  type: 'image',
+  x: 100,
+  y: 200,
+  width: 320,
+  height: 240,
+  src: 'data:image/png;base64,abc',
+  name: 'test.png',
+  opacity: 1,
+  createdAt: 2_000,
+}
+
+describe('image editing helpers', () => {
+  it('getImageOpacity clamps and normalises values', () => {
+    expect(getImageOpacity(testImage)).toBe(1)
+    expect(getImageOpacity({ ...testImage, opacity: 0.5 })).toBe(0.5)
+    expect(getImageOpacity({ ...testImage, opacity: undefined })).toBe(1)
+    expect(getImageOpacity({ ...testImage, opacity: -0.1 })).toBe(0)
+    expect(getImageOpacity({ ...testImage, opacity: 1.5 })).toBe(1)
+    expect(getImageOpacity({ ...testImage, opacity: Number.NaN })).toBe(1)
+  })
+
+  it('withImageEdit updates opacity immutably', () => {
+    const edited = withImageEdit(testImage, { opacity: 0.4 })
+    expect(edited.opacity).toBeCloseTo(0.4)
+    expect(testImage.opacity).toBe(1)
+  })
+
+  it('withImageEdit clamps out-of-range opacity', () => {
+    expect(withImageEdit(testImage, { opacity: 2 }).opacity).toBe(1)
+    expect(withImageEdit(testImage, { opacity: -1 }).opacity).toBe(0)
+  })
+
+  it('withImageEdit updates size preserving other fields', () => {
+    const edited = withImageEdit(testImage, { width: 480, height: 360, x: 80, y: 160 })
+    expect(edited.width).toBe(480)
+    expect(edited.height).toBe(360)
+    expect(edited.x).toBe(80)
+    expect(edited.opacity).toBe(1)
+    expect(edited.src).toBe(testImage.src)
+  })
+
+  it('fitImage returns opacity 1 and respects min/max size', () => {
+    const fitted = fitImage('data:image/png;base64,x', 'img.png', 800, 600, { x: 0, y: 0 })
+    expect(fitted.opacity).toBe(1)
+    expect(fitted.width).toBeLessThanOrEqual(480)
+    expect(fitted.height).toBeLessThanOrEqual(480)
+
+    const small = fitImage('data:image/png;base64,x', 'img.png', 10, 10, { x: 0, y: 0 })
+    expect(small.width).toBeGreaterThanOrEqual(10)
+    expect(small.height).toBeGreaterThanOrEqual(10)
+  })
+})

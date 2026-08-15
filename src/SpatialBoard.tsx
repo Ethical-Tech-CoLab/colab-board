@@ -490,12 +490,15 @@ function createSpatialItem(
   if (item.type === 'image') {
     const width = item.width * SPATIAL_WORLD_SCALE
     const height = item.height * SPATIAL_WORLD_SCALE
+    const imageOpacity = item.opacity ?? 1
     const frame = new THREE.Mesh(
       new THREE.BoxGeometry(width + 0.08, height + 0.08, 0.06),
       new THREE.MeshStandardMaterial({
         color: '#f3eefb',
         metalness: 0.22,
         roughness: 0.35,
+        opacity: imageOpacity,
+        transparent: imageOpacity < 1,
       }),
     )
     frame.castShadow = true
@@ -504,7 +507,11 @@ function createSpatialItem(
     texture.colorSpace = THREE.SRGBColorSpace
     const image = new THREE.Mesh(
       new THREE.PlaneGeometry(width, height),
-      new THREE.MeshBasicMaterial({ map: texture, transparent: true }),
+      new THREE.MeshBasicMaterial({
+        map: texture,
+        transparent: true,
+        opacity: imageOpacity,
+      }),
     )
     image.position.z = 0.032
     group.add(image)

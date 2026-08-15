@@ -239,6 +239,7 @@ function drawImage(
 ) {
   const image = imageFromCache(item, cache, onLoad)
   context.save()
+  context.globalAlpha = item.opacity ?? 1
   context.shadowColor = 'rgba(29, 39, 34, 0.18)'
   context.shadowBlur = 18
   context.shadowOffsetY = 7

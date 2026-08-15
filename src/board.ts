@@ -371,8 +371,25 @@ export function fitImage(
     height,
     src,
     name,
+    opacity: 1,
     createdAt: Date.now(),
   }
+}
+
+export function getImageOpacity(item: ImageItem): number {
+  const value = item.opacity ?? 1
+  return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 1
+}
+
+export function withImageEdit(
+  item: ImageItem,
+  edits: Partial<Pick<ImageItem, 'opacity' | 'width' | 'height' | 'x' | 'y'>>,
+): ImageItem {
+  const next = { ...item, ...edits }
+  if (edits.opacity !== undefined) {
+    next.opacity = getImageOpacity({ ...item, opacity: edits.opacity })
+  }
+  return next
 }
 
 export function cloneItem<T extends BoardItem>(item: T): T {

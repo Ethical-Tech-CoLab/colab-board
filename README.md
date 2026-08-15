@@ -1,6 +1,6 @@
 # Ethical Tech CoLab Board
 
-**[Open the live CoLab Board →](https://ethical-tech-colab.github.io/ethical-tech-colab-board/)**
+**[Open the live CoLab Board →](https://ethical-tech-colab.github.io/colab-board/)**
 
 A local-first spatial thinking surface for touch displays, classrooms, studios, and collaborative workshops. It runs entirely in the browser and can be hosted on GitHub Pages without a server.
 
