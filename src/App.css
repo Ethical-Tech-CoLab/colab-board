@@ -1568,11 +1568,19 @@ kbd {
 .water-surface-settings select {
   min-width: 0;
   height: 34px;
+  /* Explicit color-scheme: inherit overrides the Chromium/Edge UA-stylesheet
+     default of "light dark" so the OS-native dropdown popup renders in the
+     correct dark or light mode rather than always in system-light mode.
+     background is set to the opaque --brand-panel token (not the transparent
+     --brand-control) so the browser can resolve the popup's dark/light
+     context from a concrete colour, preventing black-text-on-white rendering
+     on Windows when the system colour scheme is light. */
+  color-scheme: inherit;
   color: var(--brand-foreground);
   font-size: 10px;
   border: 1px solid var(--brand-border);
   border-radius: 8px;
-  background: var(--brand-control);
+  background: var(--brand-panel);
 }
 
 .water-setting-inline {
@@ -4312,6 +4320,15 @@ kbd {
   color: var(--brand-foreground);
   border-color: var(--brand-border);
   background: var(--brand-control);
+}
+
+/* The compact sub-panel selects use an opaque panel background so the
+   OS-native dropdown popup can determine dark vs light mode correctly.
+   Must appear after the .settings-panel select block above (same
+   specificity — cascade position wins). */
+.replay-studio-settings select,
+.water-surface-settings select {
+  background: var(--brand-panel);
 }
 
 .scene-options button.is-active,
