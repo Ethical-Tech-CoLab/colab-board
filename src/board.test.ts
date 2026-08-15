@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
-  applyItemEvent,
-  createBoard,
   DEFAULT_CAMERA,
+  applyItemEvent,
+  boardPointToTextureUV,
+  createBoard,
+  fitImage,
+  fitBoardCamera,
   getAmbientReplayCamera,
+  getImageOpacity,
+  getItemBounds,
   getItemsCenter,
   getReplayDuration,
   getReplayFade,
@@ -15,6 +20,8 @@ import {
   sparkleHue,
   sparkleOffset,
   sparkleTrailHue,
+  texturePlaneCoords,
+  withImageEdit,
   withSpatialTransform,
 } from './board'
 import {
@@ -26,7 +33,7 @@ import {
   serializeThemePack,
   type ThemeItConfig,
 } from './branding'
-import type { NoteItem, StrokeItem, TimelineEvent } from './types'
+import type { ImageItem, NoteItem, StrokeItem, TimelineEvent } from './types'
 
 const note: NoteItem = {
   id: 'note-1',
@@ -338,13 +345,6 @@ describe('swappable branding', () => {
   })
 })
 
-import {
-  fitImage,
-  getImageOpacity,
-  withImageEdit,
-} from './board'
-import type { ImageItem } from './types'
-
 const testImage: ImageItem = {
   id: 'image-1',
   type: 'image',
@@ -448,6 +448,56 @@ describe('image editing helpers', () => {
   })
 })
 
+describe('water screensaver coordinate helpers', () => {
+  it('returns DEFAULT_CAMERA when the board has no items', () => {
+    expect(fitBoardCamera([], 1024, 1024)).toEqual(DEFAULT_CAMERA)
+  })
+
+  it('fits all item bounds within the texture viewport with padding', () => {
+    const cam = fitBoardCamera([note, stroke], 1024, 1024, 40)
+    for (const item of [note, stroke]) {
+      const b = getItemBounds(item)
+      expect(cam.x + b.x * cam.scale).toBeGreaterThanOrEqual(0)
+      expect(cam.x + (b.x + b.width) * cam.scale).toBeLessThanOrEqual(1024)
+      expect(cam.y + b.y * cam.scale).toBeGreaterThanOrEqual(0)
+      expect(cam.y + (b.y + b.height) * cam.scale).toBeLessThanOrEqual(1024)
+    }
+  })
+
+  it('maps a single-item centroid to the centre of texture and plane', () => {
+    // With only one item the fit camera centres its bounding box exactly in
+    // the texture, so the centroid UV should be 0.5 and the plane coord 0.
+    const cam = fitBoardCamera([note], 1024, 1024)
+    const cx = note.x + note.width / 2
+    const cy = note.y + note.height / 2
+    const { u, v } = boardPointToTextureUV(cx, cy, cam, 1024, 1024)
+    const { x, y } = texturePlaneCoords(u, v)
+    expect(u).toBeCloseTo(0.5)
+    expect(v).toBeCloseTo(0.5)
+    expect(x).toBeCloseTo(0)
+    expect(y).toBeCloseTo(0)
+  })
+
+  it('clamps out-of-range UV to the [-1, 1] plane boundary', () => {
+    expect(texturePlaneCoords(-0.5, 1.5)).toEqual({ x: -1, y: -1 })
+    expect(texturePlaneCoords(0, 0)).toEqual({ x: -1, y: 1 })
+    expect(texturePlaneCoords(1, 1)).toEqual({ x: 1, y: -1 })
+  })
+
+  it('preserves the coordinate-space relationship across the pipeline', () => {
+    // A point at the top-right of the board content should map to the
+    // top-right quadrant of the plane (positive x, positive y).
+    const cam = fitBoardCamera([note, stroke], 1024, 1024)
+    const allBounds = [note, stroke].map(getItemBounds)
+    const right = Math.max(...allBounds.map((b) => b.x + b.width))
+    const top = Math.min(...allBounds.map((b) => b.y)) // top = min y in canvas coords
+    const { u, v } = boardPointToTextureUV(right, top, cam, 1024, 1024)
+    const { x, y } = texturePlaneCoords(u, v)
+    expect(x).toBeGreaterThan(0) // right side
+    expect(y).toBeGreaterThan(0) // top (v small → y positive)
+  })
+})
+
 describe('screensaver mode validation', () => {
   it('includes water in the valid screensaver modes', () => {
     const validModes = [
@@ -461,7 +511,6 @@ describe('screensaver mode validation', () => {
       'water',
     ] as const
     const waterMode: import('./types').ScreensaverMode = 'water'
-    expect(validModes).toContain(waterMode)
     expect(validModes).toContain(waterMode)
   })
 })

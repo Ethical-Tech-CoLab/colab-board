@@ -446,7 +446,7 @@ export default function ReplayOverlay({
           </div>
         </div>
       ) : mode === 'water' ? (
-        <WaterScreensaver document={document} theme={theme} onClose={onClose} />
+        <WaterScreensaver document={document} theme={theme} />
       ) : (
         <div className="snake-scene">
           <div className="snake-title">

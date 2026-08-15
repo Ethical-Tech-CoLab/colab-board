@@ -1,15 +1,19 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
-import { DEFAULT_CAMERA, getItemBounds } from './board'
+import {
+  fitBoardCamera,
+  boardPointToTextureUV,
+  texturePlaneCoords,
+  getItemBounds,
+} from './board'
 import type { BrandTheme } from './branding'
 import { drawScene, type ImageCache } from './render'
-import type { BoardDocument, BoardItem } from './types'
+import type { BoardDocument, BoardItem, Camera } from './types'
 
 const TEXTURE_W = 1024
 const TEXTURE_H = 1024
 const MAX_WAVES = 12
 const PLANE_SEGMENTS = 512
-const BOARD_REFRESH_MS = 2_000
 const RIPPLE_MIN_MS = 1_800
 const RIPPLE_MAX_MS = 5_000
 const RIPPLE_LIFETIME_SECONDS = 9
@@ -84,7 +88,6 @@ void main() {
 interface WaterScreensaverProps {
   document: BoardDocument
   theme: BrandTheme
-  onClose: () => void
 }
 
 interface WaveState {
@@ -96,13 +99,6 @@ interface WaveState {
 
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value))
-}
-
-function boardToPlane(x: number, y: number) {
-  return {
-    x: clamp((x / TEXTURE_W) * 2 - 1, -1, 1),
-    y: clamp(-((y / TEXTURE_H) * 2 - 1), -1, 1),
-  }
 }
 
 function getItemCentroid(item: BoardItem) {
@@ -221,10 +217,12 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
     const pointer = new THREE.Vector2()
     const lightPosition = new THREE.Vector3()
     const waves: WaveState[] = []
+    // Tracks the camera used for the most recent texture render so that ripple
+    // positions can be mapped through the same transform.
+    let currentFittedCamera: Camera = { x: 0, y: 0, scale: 1 }
     let destroyed = false
     let frameId: number | undefined
     let rippleTimeoutId: number | undefined
-    let refreshTimeoutId: number | undefined
 
     const syncTheme = () => {
       ambientLight.color.set(themeRef.current.canvas.selection)
@@ -236,12 +234,15 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
       if (destroyed) return
       syncTheme()
       const currentDocument = documentRef.current
+      // Recompute the fit-to-items camera so all board objects appear in the
+      // texture, then store it for ripple coordinate mapping.
+      currentFittedCamera = fitBoardCamera(currentDocument.items, TEXTURE_W, TEXTURE_H)
       drawScene(
         boardContext,
         TEXTURE_W,
         TEXTURE_H,
         currentDocument.items,
-        DEFAULT_CAMERA,
+        currentFittedCamera,
         imageCache,
         {
           notes: true,
@@ -273,15 +274,17 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
       if (items.length === 0) return
       const item = items[Math.floor(Math.random() * items.length)]
       const centroid = getItemCentroid(item)
-      const planePoint = boardToPlane(centroid.x, centroid.y)
-      addRipple(planePoint.x, planePoint.y, 0.72 + Math.random() * 0.28)
-    }
-
-    const scheduleBoardRefresh = () => {
-      refreshTimeoutId = window.setTimeout(() => {
-        refreshBoardTexture()
-        scheduleBoardRefresh()
-      }, BOARD_REFRESH_MS)
+      // Map board-space centroid → texture UV → plane coords using the same
+      // fitted camera that was used to draw the current board texture.
+      const { u, v } = boardPointToTextureUV(
+        centroid.x,
+        centroid.y,
+        currentFittedCamera,
+        TEXTURE_W,
+        TEXTURE_H,
+      )
+      const { x: px, y: py } = texturePlaneCoords(u, v)
+      addRipple(px, py, 0.72 + Math.random() * 0.28)
     }
 
     const scheduleRipple = () => {
@@ -310,7 +313,6 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
     resizeObserver.observe(container)
     updateLayout()
     refreshBoardTexture()
-    scheduleBoardRefresh()
     scheduleRipple()
 
     const handlePointerDown = (event: PointerEvent) => {
@@ -369,7 +371,6 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
       refreshBoardTextureRef.current = null
       if (frameId !== undefined) cancelAnimationFrame(frameId)
       if (rippleTimeoutId !== undefined) clearTimeout(rippleTimeoutId)
-      if (refreshTimeoutId !== undefined) clearTimeout(refreshTimeoutId)
       resizeObserver.disconnect()
       container.removeEventListener('pointerdown', handlePointerDown)
       scene.remove(waterMesh)

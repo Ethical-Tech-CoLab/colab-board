@@ -396,6 +396,72 @@ export function cloneItem<T extends BoardItem>(item: T): T {
   return structuredClone(item)
 }
 
+/**
+ * Compute a Camera that fits all items into a texture of the given pixel
+ * dimensions with uniform padding.  The result can be passed directly to
+ * drawScene so that every board object is visible in the texture.
+ */
+export function fitBoardCamera(
+  items: BoardItem[],
+  width: number,
+  height: number,
+  padding = 40,
+): Camera {
+  if (items.length === 0) return DEFAULT_CAMERA
+
+  const allBounds = items.map(getItemBounds)
+  const left = Math.min(...allBounds.map((b) => b.x))
+  const top = Math.min(...allBounds.map((b) => b.y))
+  const right = Math.max(...allBounds.map((b) => b.x + b.width))
+  const bottom = Math.max(...allBounds.map((b) => b.y + b.height))
+
+  const contentW = Math.max(1, right - left)
+  const contentH = Math.max(1, bottom - top)
+  const scale = Math.min(
+    (width - padding * 2) / contentW,
+    (height - padding * 2) / contentH,
+  )
+
+  return {
+    scale,
+    x: width / 2 - ((left + right) / 2) * scale,
+    y: height / 2 - ((top + bottom) / 2) * scale,
+  }
+}
+
+/**
+ * Convert a point in board-space to normalised UV coordinates (0–1) relative
+ * to the texture rendered with `camera`.
+ */
+export function boardPointToTextureUV(
+  boardX: number,
+  boardY: number,
+  camera: Camera,
+  textureWidth: number,
+  textureHeight: number,
+): { u: number; v: number } {
+  return {
+    u: (camera.x + boardX * camera.scale) / textureWidth,
+    v: (camera.y + boardY * camera.scale) / textureHeight,
+  }
+}
+
+/**
+ * Map UV coordinates (0–1) to Three.js plane-mesh local coordinates (−1 to 1).
+ * V is flipped so that (0.5, 0.5) UV maps to (0, 0) plane, matching a
+ * PlaneGeometry(2, 2) with uv (0,0) at bottom-left.
+ * Coordinates outside [0, 1] are clamped to [−1, 1].
+ */
+export function texturePlaneCoords(
+  u: number,
+  v: number,
+): { x: number; y: number } {
+  return {
+    x: Math.min(1, Math.max(-1, u * 2 - 1)),
+    y: Math.min(1, Math.max(-1, -(v * 2 - 1))),
+  }
+}
+
 export function strokeAsEvent(item: StrokeItem): TimelineEvent {
   return {
     id: createId('event'),
