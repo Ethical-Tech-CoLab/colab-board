@@ -17,6 +17,7 @@ import {
 } from './board'
 import type { BrandTheme } from './branding'
 import { drawScene, type ImageCache } from './render'
+import { galaxyOrbitRadius } from './galaxyScreensaver'
 import type {
   BoardDocument,
   Camera,
@@ -342,7 +343,7 @@ export default function ReplayOverlay({
                   '--i': index,
                   '--size': `${2 + (index % 4)}px`,
                   '--duration': `${9 + (index % 8) * 2}s`,
-                  '--radius': `${45 + index * 10}px`,
+                  '--radius': `${galaxyOrbitRadius(index)}px`,
                   '--delay': `${index * -0.5}s`,
                 } as React.CSSProperties
               }

@@ -3654,6 +3654,10 @@ kbd {
   background: #d6eadf;
   box-shadow: 0 0 9px #8fd0b2;
   animation: orbit var(--duration) linear var(--delay) infinite;
+  /* Offset the rotation pivot outward so outer particles sweep across a much
+     larger area than a concentric-ring design would — the "large orbit" effect
+     that was present before the perf refactor removed this line. */
+  transform-origin: calc(70px + var(--i) * 8px) 0;
 }
 
 @keyframes orbit {
