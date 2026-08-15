@@ -109,17 +109,18 @@ export function applyItemEvent(
 export function replayAt(
   timeline: TimelineEvent[],
   elapsed: number,
+  initialCamera = DEFAULT_CAMERA,
   presorted = false,
 ): { items: BoardItem[]; camera: Camera } {
   if (timeline.length === 0) {
-    return { items: [], camera: DEFAULT_CAMERA }
+    return { items: [], camera: initialCamera }
   }
 
   const sorted = presorted ? timeline : [...timeline].sort((a, b) => a.at - b.at)
   const startedAt = sorted[0].at
   const cutoff = startedAt + Math.max(0, elapsed)
   let items: BoardItem[] = []
-  let camera = DEFAULT_CAMERA
+  let camera = initialCamera
 
   for (const event of sorted) {
     if (event.at > cutoff) break

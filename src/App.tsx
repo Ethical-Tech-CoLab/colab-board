@@ -106,6 +106,7 @@ import type {
   ReplayEndEffect,
   ReplayStyle,
   SaveState,
+  SceneMode,
   ScreensaverMode,
   StrokeItem,
   TimelineEvent,
@@ -154,6 +155,8 @@ interface Toast {
 interface ReplayState {
   mode: ScreensaverMode
   autoLoop: boolean
+  camera: Camera
+  sceneMode: SceneMode
 }
 
 function downloadBlob(blob: Blob, fileName: string) {
@@ -362,6 +365,8 @@ function App() {
   const liveAttempt = useRef(0)
   const applyingRemoteBoard = useRef(false)
   const boardRef = useRef(board)
+  const cameraRef = useRef(camera)
+  const sceneModeRef = useRef(preferences.sceneMode)
   const customTheme = useMemo(
     () =>
       customThemeConfig ? createCustomBrandTheme(customThemeConfig) : null,
@@ -393,6 +398,14 @@ function App() {
   useEffect(() => {
     boardRef.current = board
   }, [board])
+
+  useEffect(() => {
+    cameraRef.current = camera
+  }, [camera])
+
+  useEffect(() => {
+    sceneModeRef.current = preferences.sceneMode
+  }, [preferences.sceneMode])
 
   useEffect(
     () => () => {
@@ -692,6 +705,8 @@ function App() {
         setReplay({
           mode: preferences.screensaverMode,
           autoLoop: true,
+          camera: cameraRef.current,
+          sceneMode: sceneModeRef.current,
         }),
       preferences.idleMinutes * 60_000,
     )
@@ -1149,7 +1164,7 @@ function App() {
             type="button"
             aria-label="Replay board"
             disabled={board.items.length === 0}
-            onClick={() => setReplay({ mode: 'replay', autoLoop: false })}
+            onClick={() => setReplay({ mode: 'replay', autoLoop: false, camera, sceneMode: preferences.sceneMode })}
           >
             <Play />
             <span>Replay</span>
@@ -1916,6 +1931,8 @@ function App() {
                   setReplay({
                     mode: preferences.screensaverMode,
                     autoLoop: false,
+                    camera,
+                    sceneMode: preferences.sceneMode,
                   })
                 }
               >
@@ -2116,6 +2133,8 @@ function App() {
       {replay && (
         <ReplayOverlay
           document={board}
+          camera={replay.camera}
+          sceneMode={replay.sceneMode}
           mode={replay.mode}
           autoLoop={replay.autoLoop}
           replayStyle={preferences.replayStyle}

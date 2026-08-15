@@ -17,13 +17,17 @@ import type { BrandTheme } from './branding'
 import { drawScene, type ImageCache } from './render'
 import type {
   BoardDocument,
+  Camera,
   ReplayEndEffect,
   ReplayStyle,
+  SceneMode,
   ScreensaverMode,
 } from './types'
 
 interface ReplayOverlayProps {
   document: BoardDocument
+  camera: Camera
+  sceneMode: SceneMode
   mode: ScreensaverMode
   autoLoop: boolean
   replayStyle: ReplayStyle
@@ -34,6 +38,8 @@ interface ReplayOverlayProps {
 
 export default function ReplayOverlay({
   document,
+  camera,
+  sceneMode,
   mode,
   autoLoop,
   replayStyle,
@@ -100,10 +106,10 @@ export default function ReplayOverlay({
           : Math.min(1, elapsedMs / playbackDuration) * sourceDuration
       const frame =
         sortedTimeline.length > 0
-          ? replayAt(sortedTimeline, sourceElapsed, true)
+          ? replayAt(sortedTimeline, sourceElapsed, camera, true)
           : {
               items: document.timeline.length === 0 ? document.items : [],
-              camera: { x: 0, y: 0, scale: 1 },
+              camera,
             }
       const replayCamera =
         replayStyle === 'artistic' || replayStyle === 'evolution'
@@ -131,6 +137,7 @@ export default function ReplayOverlay({
           const ghost = replayAt(
             sortedTimeline,
             Math.max(0, sourceElapsed - offset),
+            camera,
             true,
           )
           context.save()
@@ -156,6 +163,7 @@ export default function ReplayOverlay({
       }
     }
   }, [
+    camera,
     document.items,
     document.timeline.length,
     document.watermark,
@@ -278,7 +286,7 @@ export default function ReplayOverlay({
 
   return (
     <section
-      className={`replay-overlay mode-${mode} style-${replayStyle} end-${endEffect}${
+      className={`replay-overlay mode-${mode} style-${replayStyle} end-${endEffect} scene-${sceneMode}${
         ending ? ' is-ending' : ''
       }`}
       aria-label={`${mode} screensaver`}

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   applyItemEvent,
   createBoard,
+  DEFAULT_CAMERA,
   getAmbientReplayCamera,
   getItemsCenter,
   getReplayDuration,
@@ -119,7 +120,7 @@ describe('board document events', () => {
     const sorted = [...timeline].sort((a, b) => a.at - b.at)
 
     const unsortedResult = replayAt(timeline, 300)
-    const presortedResult = replayAt(sorted, 300, true)
+    const presortedResult = replayAt(sorted, 300, DEFAULT_CAMERA, true)
 
     expect(presortedResult.items).toHaveLength(unsortedResult.items.length)
     expect(presortedResult.camera).toEqual(unsortedResult.camera)
@@ -133,18 +134,65 @@ describe('board document events', () => {
     const sorted = [...timeline].sort((a, b) => a.at - b.at)
     const sourceDuration = getReplayDuration(sorted)
 
-    // Primary frame
-    const primary = replayAt(sorted, sourceDuration * 0.5, true)
-    // Ghost frame at -2.5% offset (as used by Ghost Trails)
+    const primary = replayAt(
+      sorted,
+      sourceDuration * 0.5,
+      DEFAULT_CAMERA,
+      true,
+    )
     const ghostOffset = sourceDuration * 0.025
     const ghost = replayAt(
       sorted,
       Math.max(0, sourceDuration * 0.5 - ghostOffset),
+      DEFAULT_CAMERA,
       true,
     )
 
-    // Ghost should have the same or fewer items than the primary frame
     expect(ghost.items.length).toBeLessThanOrEqual(primary.items.length)
+  })
+
+  it('uses initialCamera as the starting viewport when the screensaver begins', () => {
+    const activationCamera = { x: 120, y: -60, scale: 2 }
+    const timeline: TimelineEvent[] = [
+      { id: 'event-1', type: 'add', at: 1_000, item: note },
+      { id: 'event-2', type: 'add', at: 1_200, item: stroke },
+    ]
+    const frame = replayAt(timeline, 0, activationCamera)
+    expect(frame.camera).toEqual(activationCamera)
+  })
+
+  it('overrides initialCamera once a recorded camera event is reached', () => {
+    const activationCamera = { x: 120, y: -60, scale: 2 }
+    const recordedCamera = { x: 300, y: 100, scale: 1.5 }
+    const timeline: TimelineEvent[] = [
+      { id: 'event-1', type: 'add', at: 1_000, item: note },
+      { id: 'camera-1', type: 'camera', at: 1_100, camera: recordedCamera },
+    ]
+    const frame = replayAt(timeline, 200, activationCamera)
+    expect(frame.camera).toEqual(recordedCamera)
+  })
+
+  it('returns initialCamera for an empty timeline', () => {
+    const activationCamera = { x: 50, y: 80, scale: 1.2 }
+    const frame = replayAt([], 0, activationCamera)
+    expect(frame.camera).toEqual(activationCamera)
+    expect(frame.items).toEqual([])
+  })
+
+  it('returns DEFAULT_CAMERA when no initialCamera and timeline is empty', () => {
+    const frame = replayAt([], 0)
+    expect(frame.camera).toEqual({ x: 0, y: 0, scale: 1 })
+  })
+
+  it('uses initialCamera after a post-clear replay with no subsequent camera event', () => {
+    const activationCamera = { x: -200, y: 50, scale: 0.8 }
+    const postClearTimeline = getReplayTimelineSinceLastClear([
+      { id: 'event-1', type: 'add', at: 1_000, item: note },
+      { id: 'clear-1', type: 'clear', at: 1_200 },
+      { id: 'event-2', type: 'add', at: 1_400, item: stroke },
+    ])
+    const frame = replayAt(postClearTimeline, 0, activationCamera)
+    expect(frame.camera).toEqual(activationCamera)
   })
 
   it('starts a replay after the most recent clear event', () => {
