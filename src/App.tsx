@@ -367,7 +367,7 @@ function App() {
   const idleTimer = useRef<number | undefined>(undefined)
   const liveSessionRef = useRef<LiveSession | null>(null)
   const liveAttempt = useRef(0)
-  const applyingRemoteBoard = useRef(false)
+  const applyingRemoteBoard = useRef<BoardDocument | null>(null)
   const boardRef = useRef(board)
   const cameraRef = useRef(camera)
   const sceneModeRef = useRef(preferences.sceneMode)
@@ -432,7 +432,7 @@ function App() {
         },
         onDocument: (nextBoard: BoardDocument) => {
           if (liveAttempt.current !== attempt) return
-          applyingRemoteBoard.current = true
+          applyingRemoteBoard.current = nextBoard
           past.current = []
           future.current = []
           boardRef.current = nextBoard
@@ -519,8 +519,8 @@ function App() {
 
   useEffect(() => {
     if (!loaded || !liveSessionRef.current) return
-    if (applyingRemoteBoard.current) {
-      applyingRemoteBoard.current = false
+    if (applyingRemoteBoard.current === board) {
+      applyingRemoteBoard.current = null
       return
     }
     liveSessionRef.current.publish(board)

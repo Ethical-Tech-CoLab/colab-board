@@ -854,7 +854,10 @@ export function joinLiveSession(
     remoteDrafts.clear()
   }
 
-  const updateLocalFromConfirmed = (notifyDocument = true) => {
+  const updateLocalFromConfirmed = (
+    notifyDocument = true,
+    forceNotify = false,
+  ) => {
     if (!confirmedBoard) return
     const nextBoard = applyLiveBoardPatches(
       confirmedBoard,
@@ -867,7 +870,7 @@ export function joinLiveSession(
       nextBoard.updatedAt,
     )
     localBoard = nextBoard
-    if (notifyDocument && changed) options.onDocument(localBoard)
+    if (notifyDocument && (changed || forceNotify)) options.onDocument(localBoard)
   }
 
   const clearReconnectTimer = () => {
@@ -960,7 +963,7 @@ export function joinLiveSession(
         everConnected = true
         reconnectAttempt = 0
         options.onStatus('connected')
-        updateLocalFromConfirmed()
+        updateLocalFromConfirmed(true, true)
         flushPending()
         return
       }

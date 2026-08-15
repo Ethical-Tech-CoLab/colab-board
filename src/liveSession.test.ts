@@ -251,3 +251,200 @@ describe('live session operation protocol', () => {
     ).toBe(false)
   })
 })
+
+describe('late-join catch-up', () => {
+  // scenario 1: host makes several notes before first participant joins
+  it('checkpoint carries all host edits made before first participant joins', () => {
+    // Host accumulates five edits before anyone connects.
+    // The host's boardState is the running apply of every published patch.
+    // When a participant joins, sendCheckpoint ships boardState directly.
+    let hostBoard = createBoard()
+    const startingBoard = hostBoard
+    const notes = Array.from({ length: 5 }, (_, i) =>
+      createNote(i * 50, i * 30),
+    )
+    const patches = notes.map((note, i) => {
+      const next = withNote(hostBoard, note, `event-${i}`)
+      const patch = createLiveBoardPatch(hostBoard, next, `patch-${i}`, i + 1)!
+      hostBoard = next
+      return patch
+    })
+
+    // boardState on the host is the cumulative result of all patches.
+    const boardState = patches.reduce(
+      (acc, patch) => applyLiveBoardPatch(acc, patch),
+      startingBoard,
+    )
+    expect(boardState.items).toHaveLength(5)
+    expect(boardState.items.map((n) => n.id)).toEqual(notes.map((n) => n.id))
+
+    // A late-joining client sets confirmedBoard = checkpoint = boardState.
+    // With no pending patches, localBoard = applyLiveBoardPatches(boardState, []) = boardState.
+    const clientBoard = applyLiveBoardPatches(boardState, [])
+    expect(clientBoard.items).toHaveLength(5)
+    expect(clientBoard).toEqual(hostBoard)
+  })
+
+  // scenario 2: host and existing participant edit before second participant joins
+  it('second late joiner receives merged board from host and first participant', () => {
+    const initialBoard = createBoard()
+
+    // Host adds note A.
+    const noteA = createNote(10, 10)
+    const hostBoard = withNote(initialBoard, noteA, 'event-a')
+
+    // Participant 1 adds note B (concurrent, from the same base as host edit after merge).
+    // In the protocol, the host's boardState accumulates both.
+    const noteB = createNote(200, 200)
+    const patchA = createLiveBoardPatch(initialBoard, hostBoard, 'patch-a', 1)!
+    const afterA = applyLiveBoardPatch(initialBoard, patchA)
+    const participant1Board = withNote(afterA, noteB, 'event-b')
+    const patchB = createLiveBoardPatch(afterA, participant1Board, 'patch-b', 2)!
+
+    // Host's boardState has both notes after applying both patches in order.
+    const mergedBoardState = applyLiveBoardPatch(
+      applyLiveBoardPatch(initialBoard, patchA),
+      patchB,
+    )
+    expect(mergedBoardState.items).toHaveLength(2)
+    expect(mergedBoardState.items.map((n) => n.id)).toEqual([
+      noteA.id,
+      noteB.id,
+    ])
+
+    // Second late-joining participant receives checkpoint = mergedBoardState.
+    const secondClientBoard = applyLiveBoardPatches(mergedBoardState, [])
+    expect(secondClientBoard.items).toHaveLength(2)
+    expect(secondClientBoard).toEqual(mergedBoardState)
+  })
+
+  // scenario 3: an edit occurs while the new participant is receiving the checkpoint
+  it('commit arriving after checkpoint is applied incrementally on top of checkpoint board', () => {
+    // Host state before checkpoint.
+    const base = createBoard()
+    const noteA = createNote(10, 10)
+    const checkpointBoard = withNote(base, noteA, 'event-a')
+
+    // Client receives checkpoint; confirmedBoard = checkpointBoard.
+    let confirmedBoard = checkpointBoard
+
+    // While the checkpoint is in flight, host adds note B.
+    const noteB = createNote(50, 50)
+    const boardAfterB = withNote(checkpointBoard, noteB, 'event-b')
+    const commitPatch = createLiveBoardPatch(
+      checkpointBoard,
+      boardAfterB,
+      'commit-b',
+      2,
+    )!
+
+    // Client receives the commit and applies it on top of confirmedBoard.
+    confirmedBoard = applyLiveBoardPatch(confirmedBoard, commitPatch)
+    // localBoard = applyLiveBoardPatches(confirmedBoard, pending=[]) = confirmedBoard
+    const localBoard = applyLiveBoardPatches(confirmedBoard, [])
+
+    expect(localBoard.items).toHaveLength(2)
+    expect(localBoard).toEqual(boardAfterB)
+  })
+
+  // scenario 4: reconnect after falling behind — resync issues a new checkpoint
+  it('resync checkpoint after a revision gap restores the client to current host state', () => {
+    const base = createBoard()
+
+    // Build host state through revisions 1–5.
+    let hostBoardState = base
+    for (let i = 0; i < 5; i++) {
+      const note = createNote(i * 40, i * 40)
+      const next = withNote(hostBoardState, note, `event-${i}`)
+      const patch = createLiveBoardPatch(
+        hostBoardState,
+        next,
+        `patch-${i}`,
+        i + 1,
+      )!
+      hostBoardState = applyLiveBoardPatch(hostBoardState, patch)
+    }
+
+    // Client only has revision 2 (fell behind by 3 revisions).
+    // Host detects the gap and sends a resync checkpoint at revision 5.
+    const resyncCheckpointBoard = hostBoardState
+
+    // Client applies resync: confirmedBoard = resyncCheckpointBoard.
+    // Pending patches whose sequence > acknowledgedSequence are preserved but
+    // here we assume client had no pending edits.
+    const clientLocalBoard = applyLiveBoardPatches(resyncCheckpointBoard, [])
+    expect(clientLocalBoard.items).toHaveLength(5)
+    expect(clientLocalBoard).toEqual(hostBoardState)
+  })
+
+  // scenario 5: board with embedded image — checkpoint carries the full image once,
+  // subsequent incremental patches remain tiny
+  it('incremental patch after an image-bearing checkpoint omits the image bytes', () => {
+    const base = createBoard()
+    const image: ImageItem = {
+      id: 'img-1',
+      type: 'image',
+      x: 0,
+      y: 0,
+      width: 640,
+      height: 480,
+      src: `data:image/png;base64,${'B'.repeat(300_000)}`,
+      name: 'board-bg.png',
+      createdAt: 1,
+    }
+    // Checkpoint board already has the image.
+    const checkpointBoard: BoardDocument = {
+      ...base,
+      updatedAt: 1,
+      items: [image],
+      timeline: [{ id: 'ev-img', type: 'add', at: 1, item: image }],
+    }
+
+    // After checkpoint, client adds a small note.
+    const note = createNote(10, 10)
+    const boardWithNote = withNote(checkpointBoard, note, 'ev-note')
+    const incrementalPatch = createLiveBoardPatch(
+      checkpointBoard,
+      boardWithNote,
+      'patch-note',
+      2,
+    )!
+
+    // The incremental patch must NOT include the large image bytes.
+    const patchJson = JSON.stringify(incrementalPatch)
+    expect(patchJson).not.toContain('data:image/png')
+    expect(patchJson.length).toBeLessThan(1_000)
+
+    // Applying the patch on top of the checkpoint-received board gives the correct state.
+    const clientBoard = applyLiveBoardPatch(checkpointBoard, incrementalPatch)
+    expect(clientBoard.items).toHaveLength(2)
+    expect(clientBoard).toEqual(boardWithNote)
+  })
+
+  // scenario 6: self-acknowledgements return null patches so onDocument is not
+  // triggered and the participant's local undo stack is preserved
+  it('self-acknowledgement produces a null patch leaving undo history intact', () => {
+    const board = createBoard()
+    const note = createNote(10, 20)
+    const localBoard = withNote(board, note)
+
+    // The acknowledged board arrives as a JSON round-trip (serialised over the wire).
+    // confirmedBoard + applyLiveBoardPatches(confirmedBoard, pending) == localBoard
+    // when all pending patches have been acknowledged.
+    const confirmedBoard = JSON.parse(
+      JSON.stringify(localBoard),
+    ) as BoardDocument
+    const nextBoard = applyLiveBoardPatches(confirmedBoard, [])
+
+    // createLiveBoardPatch returns null when local and next are content-equivalent,
+    // causing updateLocalFromConfirmed to skip options.onDocument (notifyDocument &&
+    // (changed || forceNotify) === false) so the React undo stack is NOT cleared.
+    const changed = createLiveBoardPatch(
+      localBoard,
+      nextBoard,
+      'self-ack-check',
+      500,
+    )
+    expect(changed).toBeNull()
+  })
+})
