@@ -22,13 +22,10 @@ import {
   resolveDropPosition,
   computeTextureDimensions,
   INTENSITY_AMPLITUDE,
+  WATER_TEXTURE_MAX_DIM,
   WAVE_SPEED_MULTIPLIER,
 } from './waterUtils'
 
-// Maximum texture dimension (used for the longer axis).  The shorter axis is
-// set dynamically to match the viewport aspect ratio so board content is not
-// squished when the UV-to-world mapping crosses a non-square plane.
-const TEXTURE_MAX_DIM = 1024
 const MAX_WAVES = 12
 const PLANE_SEGMENTS = 512
 const RIPPLE_LIFETIME_SECONDS = 9
@@ -190,23 +187,46 @@ function mountFallback2D(
   const refresh = () => {
     if (destroyed) return
     const doc = documentRef.current
-    currentFittedCamera = fitBoardCamera(doc.items, TEXTURE_MAX_DIM, TEXTURE_MAX_DIM)
-    drawScene(boardContext, TEXTURE_MAX_DIM, TEXTURE_MAX_DIM, doc.items, currentFittedCamera, imageCache, {
-      notes: true,
-      watermark: doc.watermark,
-      theme: themeRef.current.canvas,
-      onImageLoad: () => {
-        if (!destroyed) refresh()
+    currentFittedCamera = fitBoardCamera(doc.items, boardCanvas.width, boardCanvas.height)
+    drawScene(
+      boardContext,
+      boardCanvas.width,
+      boardCanvas.height,
+      doc.items,
+      currentFittedCamera,
+      imageCache,
+      {
+        notes: true,
+        watermark: doc.watermark,
+        theme: themeRef.current.canvas,
+        onImageLoad: () => {
+          if (!destroyed) refresh()
+        },
       },
-    })
+    )
+  }
+
+  const updateLayout = () => {
+    const aspect = Math.max(container.clientWidth, 1) / Math.max(container.clientHeight, 1)
+    const { width, height } = computeTextureDimensions(aspect)
+    if (boardCanvas.width === width && boardCanvas.height === height) return false
+    boardCanvas.width = width
+    boardCanvas.height = height
+    return true
   }
 
   refreshBoardTextureRef.current = refresh
+  const resizeObserver = new ResizeObserver(() => {
+    if (updateLayout()) refresh()
+  })
+  resizeObserver.observe(container)
+  updateLayout()
   refresh()
 
   return () => {
     destroyed = true
     refreshBoardTextureRef.current = null
+    resizeObserver.disconnect()
     boardCanvas.remove()
     shimmerEl.remove()
     imageCache.clear()
@@ -241,8 +261,8 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
     if (!container) return
 
     const boardCanvas = globalThis.document.createElement('canvas')
-    boardCanvas.width = TEXTURE_MAX_DIM
-    boardCanvas.height = TEXTURE_MAX_DIM
+    boardCanvas.width = WATER_TEXTURE_MAX_DIM
+    boardCanvas.height = WATER_TEXTURE_MAX_DIM
     const boardContext = boardCanvas.getContext('2d')
     if (!boardContext) return
 
@@ -346,8 +366,8 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
     const waves: WaveState[] = []
     // Current board-texture pixel dimensions, kept in sync with the viewport's
     // aspect ratio so UV sampling does not distort board content.
-    let currentTexW = TEXTURE_MAX_DIM
-    let currentTexH = TEXTURE_MAX_DIM
+    let currentTexW = WATER_TEXTURE_MAX_DIM
+    let currentTexH = WATER_TEXTURE_MAX_DIM
     // Tracks the camera used for the most recent texture render so that ripple
     // positions can be mapped through the same transform.
     let currentFittedCamera: Camera = { x: 0, y: 0, scale: 1 }
