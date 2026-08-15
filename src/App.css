@@ -3175,6 +3175,42 @@ kbd {
   touch-action: manipulation;
 }
 
+.water-fallback-shimmer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    155deg,
+    rgba(26, 127, 168, 0) 0%,
+    rgba(26, 127, 168, 0.18) 40%,
+    rgba(0, 60, 120, 0.08) 70%,
+    rgba(26, 127, 168, 0.06) 100%
+  );
+  animation: water-sheen-fallback 7s ease-in-out infinite;
+}
+
+@keyframes water-sheen-fallback {
+  0%, 100% {
+    opacity: 0.7;
+    transform: translateX(0) scaleX(1);
+  }
+  33% {
+    opacity: 0.9;
+    transform: translateX(-1.5%) scaleX(1.03);
+  }
+  66% {
+    opacity: 0.75;
+    transform: translateX(2%) scaleX(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .water-fallback-shimmer {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
 .wargames-scene {
   --wg-bg: #020a02;
   --wg-fg: #33ff66;

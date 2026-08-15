@@ -9,6 +9,7 @@ import {
 import type { BrandTheme } from './branding'
 import { drawScene, type ImageCache } from './render'
 import type { BoardDocument, BoardItem, Camera } from './types'
+import { probeWebGL } from './waterUtils'
 
 const TEXTURE_W = 1024
 const TEXTURE_H = 1024
@@ -130,6 +131,65 @@ function randomRippleDelay() {
   return RIPPLE_MIN_MS + Math.random() * (RIPPLE_MAX_MS - RIPPLE_MIN_MS)
 }
 
+interface FallbackDeps {
+  documentRef: { current: BoardDocument }
+  themeRef: { current: BrandTheme }
+  refreshBoardTextureRef: { current: (() => void) | null }
+  imageCache: ImageCache
+}
+
+/**
+ * Lightweight 2D fallback activated when WebGL construction fails.
+ * Renders the board via drawScene onto a plain canvas and overlays a CSS
+ * shimmer animation to preserve the water feel.  Wires the same
+ * refreshBoardTextureRef hook so prop-change refreshes still work.
+ * Returns a cleanup function compatible with useEffect.
+ */
+function mountFallback2D(
+  container: HTMLElement,
+  boardCanvas: HTMLCanvasElement,
+  boardContext: CanvasRenderingContext2D,
+  deps: FallbackDeps,
+): () => void {
+  const { documentRef, themeRef, refreshBoardTextureRef, imageCache } = deps
+  let destroyed = false
+  let currentFittedCamera: Camera = { x: 0, y: 0, scale: 1 }
+
+  boardCanvas.style.cssText =
+    'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;'
+  container.appendChild(boardCanvas)
+
+  const shimmerEl = globalThis.document.createElement('div')
+  shimmerEl.className = 'water-fallback-shimmer'
+  shimmerEl.setAttribute('aria-hidden', 'true')
+  container.appendChild(shimmerEl)
+
+  const refresh = () => {
+    if (destroyed) return
+    const doc = documentRef.current
+    currentFittedCamera = fitBoardCamera(doc.items, TEXTURE_W, TEXTURE_H)
+    drawScene(boardContext, TEXTURE_W, TEXTURE_H, doc.items, currentFittedCamera, imageCache, {
+      notes: true,
+      watermark: doc.watermark,
+      theme: themeRef.current.canvas,
+      onImageLoad: () => {
+        if (!destroyed) refresh()
+      },
+    })
+  }
+
+  refreshBoardTextureRef.current = refresh
+  refresh()
+
+  return () => {
+    destroyed = true
+    refreshBoardTextureRef.current = null
+    boardCanvas.remove()
+    shimmerEl.remove()
+    imageCache.clear()
+  }
+}
+
 export default function WaterScreensaver(props: WaterScreensaverProps) {
   const { document: boardDocument, theme } = props
   const containerRef = useRef<HTMLDivElement>(null)
@@ -145,15 +205,45 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
 
   useEffect(() => {
     const container = containerRef.current
+    if (!container) return
+
     const boardCanvas = globalThis.document.createElement('canvas')
+    boardCanvas.width = TEXTURE_W
+    boardCanvas.height = TEXTURE_H
     const boardContext = boardCanvas.getContext('2d')
-    if (!container || !boardContext) return
+    if (!boardContext) return
 
     const prefersReducedMotion = window.matchMedia(
       '(prefers-reduced-motion: reduce)',
     ).matches
     const imageCache: ImageCache = new Map()
-    const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true })
+    const fallbackDeps: FallbackDeps = {
+      documentRef,
+      themeRef,
+      refreshBoardTextureRef,
+      imageCache,
+    }
+
+    // Probe before allocating any Three.js objects.  Also catch synchronous
+    // construction errors (e.g. context-creation failure inside Three.js).
+    if (!probeWebGL()) {
+      console.warn('[WaterScreensaver] WebGL unavailable; using 2D canvas fallback')
+      return mountFallback2D(container, boardCanvas, boardContext, fallbackDeps)
+    }
+
+    let renderer: THREE.WebGLRenderer | null = null
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true })
+    } catch (error) {
+      console.warn(
+        '[WaterScreensaver] WebGLRenderer construction failed; using 2D canvas fallback:',
+        error,
+      )
+    }
+    if (!renderer) {
+      return mountFallback2D(container, boardCanvas, boardContext, fallbackDeps)
+    }
+
     renderer.outputColorSpace = THREE.SRGBColorSpace
     renderer.setPixelRatio(
       Math.min(window.devicePixelRatio || 1, prefersReducedMotion ? 1 : 2),
@@ -164,9 +254,6 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
     renderer.domElement.style.width = '100%'
     renderer.domElement.style.height = '100%'
     container.appendChild(renderer.domElement)
-
-    boardCanvas.width = TEXTURE_W
-    boardCanvas.height = TEXTURE_H
 
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 12)
