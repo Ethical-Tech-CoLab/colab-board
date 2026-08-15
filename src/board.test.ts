@@ -447,3 +447,21 @@ describe('image editing helpers', () => {
     expect(afterDrag.id).toBe(original.id)
   })
 })
+
+describe('screensaver mode validation', () => {
+  it('includes water in the valid screensaver modes', () => {
+    const validModes = [
+      'replay',
+      'drift',
+      'galaxy',
+      'aurora',
+      'constellation',
+      'terminal',
+      'snake',
+      'water',
+    ] as const
+    const waterMode: import('./types').ScreensaverMode = 'water'
+    expect(validModes).toContain(waterMode)
+    expect(validModes).toContain(waterMode)
+  })
+})

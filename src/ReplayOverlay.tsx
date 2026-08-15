@@ -15,6 +15,7 @@ import {
 } from './board'
 import type { BrandTheme } from './branding'
 import { drawScene, type ImageCache } from './render'
+import WaterScreensaver from './WaterScreensaver'
 import type {
   BoardDocument,
   Camera,
@@ -444,6 +445,8 @@ export default function ReplayOverlay({
             </div>
           </div>
         </div>
+      ) : mode === 'water' ? (
+        <WaterScreensaver document={document} theme={theme} onClose={onClose} />
       ) : (
         <div className="snake-scene">
           <div className="snake-title">
@@ -485,7 +488,9 @@ export default function ReplayOverlay({
               ? autoLoop
                 ? replayLabel
                 : `Replay Studio · ${replayLabel}`
-              : 'Idle canvas'}
+              : mode === 'water'
+                ? 'Water surface'
+                : 'Idle canvas'}
           </span>
           <strong>{document.title}</strong>
         </div>

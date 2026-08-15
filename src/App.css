@@ -3075,6 +3075,13 @@ kbd {
   background: #020704;
 }
 
+.mode-water {
+  background:
+    radial-gradient(circle at 22% 18%, rgba(117, 210, 255, 0.22), transparent 28%),
+    radial-gradient(circle at 78% 12%, rgba(96, 181, 227, 0.18), transparent 24%),
+    linear-gradient(180deg, #081725 0%, #0b2537 54%, #07131d 100%);
+}
+
 .mode-drift .replay-header,
 .mode-galaxy .replay-header,
 .mode-aurora .replay-header,
@@ -3098,6 +3105,12 @@ kbd {
   font-family: "Cascadia Code", "Consolas", "SFMono-Regular", ui-monospace, monospace;
 }
 
+.mode-water .replay-header {
+  color: #effbff;
+  border-color: rgba(181, 228, 255, 0.18);
+  background: rgba(6, 18, 29, 0.58);
+}
+
 .mode-drift .replay-header span,
 .mode-galaxy .replay-header span,
 .mode-aurora .replay-header span,
@@ -3111,6 +3124,10 @@ kbd {
 
 .mode-terminal .replay-header span {
   color: #1f9c40;
+}
+
+.mode-water .replay-header span {
+  color: rgba(221, 242, 255, 0.7);
 }
 
 .mode-drift .replay-header button,
@@ -3132,6 +3149,11 @@ kbd {
   background: rgba(31, 156, 64, 0.12);
 }
 
+.mode-water .replay-header button {
+  color: #effbff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .drift-scene,
 .galaxy-scene,
 .aurora-scene,
@@ -3142,10 +3164,15 @@ kbd {
 }
 
 .wargames-scene,
-.snake-scene {
+.snake-scene,
+.water-scene {
   position: absolute;
   inset: 0;
   overflow: hidden;
+}
+
+.water-scene {
+  touch-action: manipulation;
 }
 
 .wargames-scene {

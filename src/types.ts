@@ -14,6 +14,7 @@ export type ScreensaverMode =
   | 'constellation'
   | 'terminal'
   | 'snake'
+  | 'water'
 export type ReplayStyle =
   | 'exact'
   | 'accelerated'

@@ -253,6 +253,7 @@ function loadPreferences(): Preferences {
         'constellation',
         'terminal',
         'snake',
+        'water',
       ] as const
     ).includes(parsed.screensaverMode ?? 'replay')
       ? (parsed.screensaverMode ?? DEFAULT_PREFERENCES.screensaverMode)
@@ -1894,6 +1895,7 @@ function App() {
                     ['constellation', 'Idea constellation', Orbit],
                     ['terminal', 'WarGames terminal', Menu],
                     ['snake', 'Retro snake', RotateCcw],
+                    ['water', 'Water surface', Waves],
                   ] as const
                 ).map(([mode, label, Icon]) => (
                   <button
@@ -2112,6 +2114,11 @@ function App() {
                 <Box />
                 <span>Spatial depth</span>
                 <kbd>[ / ]</kbd>
+              </div>
+              <div>
+                <Waves />
+                <span>Water screensaver</span>
+                <kbd>Idle - Water surface</kbd>
               </div>
             </div>
             <p>
