@@ -1,3 +1,17 @@
+import type {
+  WaterDropFrequency,
+  WaterDropLocation,
+  WaterDisturbancePreset,
+  WaterIntensity,
+} from './types'
+
+export type {
+  WaterDropFrequency,
+  WaterDropLocation,
+  WaterDisturbancePreset,
+  WaterIntensity,
+}
+
 /**
  * Probe whether a WebGL(2) rendering context can be obtained before any
  * Three.js objects are allocated.  Accepts an injectable canvas factory so
@@ -18,10 +32,6 @@ export function probeWebGL(
 // ---------------------------------------------------------------------------
 // Water screensaver configuration utilities
 // ---------------------------------------------------------------------------
-
-export type WaterDropFrequency = 'slow' | 'medium' | 'fast'
-export type WaterDisturbancePreset = 'ripple' | 'drop' | 'splash'
-export type WaterIntensity = 'subtle' | 'medium' | 'strong'
 
 /** Min/max millisecond range for the scheduled-drop timer per frequency level */
 export const FREQUENCY_RANGES: Record<WaterDropFrequency, [number, number]> = {
@@ -69,4 +79,52 @@ export function normalizeDisturbanceCount(raw: unknown): 1 | 2 | 3 {
   if (raw === 2 || raw === '2') return 2
   if (raw === 3 || raw === '3') return 3
   return 1
+}
+
+/**
+ * Resolve a single drop origin in plane coords (x, y ∈ [-1, 1]) for the
+ * given location strategy.
+ *
+ * Accepts item positions already mapped to plane coordinates so the function
+ * stays pure and testable without any board/Three.js dependencies.
+ * Pass an injectable `rand` (defaults to Math.random) for deterministic tests.
+ *
+ * Returns null when `board-objects` is chosen but no items are present.
+ */
+export function resolveDropPosition(
+  location: WaterDropLocation,
+  randomOverride: boolean,
+  itemPlanePositions: ReadonlyArray<{ x: number; y: number }>,
+  rand: () => number = Math.random,
+): { x: number; y: number } | null {
+  // 20% chance to substitute a fully-random position when override is enabled.
+  if (randomOverride && location === 'board-objects' && rand() < 0.20) {
+    return { x: (rand() * 2 - 1) * 0.9, y: (rand() * 2 - 1) * 0.9 }
+  }
+
+  switch (location) {
+    case 'board-objects': {
+      if (itemPlanePositions.length === 0) return null
+      return itemPlanePositions[Math.floor(rand() * itemPlanePositions.length)]
+    }
+    case 'center': {
+      const jitter = 0.18
+      return {
+        x: (rand() - 0.5) * jitter * 2,
+        y: (rand() - 0.5) * jitter * 2,
+      }
+    }
+    case 'edges': {
+      const edge = Math.floor(rand() * 4)
+      const t = rand() * 2 - 1
+      const margin = 0.85
+      if (edge === 0) return { x: t, y: -margin }
+      if (edge === 1) return { x: t, y: margin }
+      if (edge === 2) return { x: -margin, y: t }
+      return { x: margin, y: t }
+    }
+    case 'random':
+    default:
+      return { x: (rand() * 2 - 1) * 0.9, y: (rand() * 2 - 1) * 0.9 }
+  }
 }

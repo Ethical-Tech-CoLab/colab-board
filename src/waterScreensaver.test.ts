@@ -7,6 +7,7 @@ import {
   DISTURBANCE_PRESET_PARAMS,
   randomWaveAmplitude,
   normalizeDisturbanceCount,
+  resolveDropPosition,
 } from './waterUtils'
 
 // Build a minimal HTMLCanvasElement-shaped stub that returns a fixed context.
@@ -117,5 +118,135 @@ describe('normalizeDisturbanceCount', () => {
     expect(normalizeDisturbanceCount(0)).toBe(1)
     expect(normalizeDisturbanceCount('7')).toBe(1)
     expect(normalizeDisturbanceCount('oops')).toBe(1)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// resolveDropPosition — deterministic tests via injected rand
+// ---------------------------------------------------------------------------
+
+/** Build a deterministic rand() that returns values from a fixed sequence. */
+function seqRand(...values: number[]): () => number {
+  let index = 0
+  return () => values[index++] ?? 0.5
+}
+
+describe('resolveDropPosition — board-objects', () => {
+  const items = [
+    { x: 0.3, y: 0.4 },
+    { x: -0.2, y: 0.5 },
+  ]
+
+  it('returns null when no items are present', () => {
+    expect(resolveDropPosition('board-objects', false, [], seqRand(0.5))).toBeNull()
+  })
+
+  it('picks the first item when rand returns 0', () => {
+    expect(resolveDropPosition('board-objects', false, items, seqRand(0))).toEqual(
+      items[0],
+    )
+  })
+
+  it('picks the last item when rand is just below 1', () => {
+    expect(resolveDropPosition('board-objects', false, items, seqRand(0.99))).toEqual(
+      items[1],
+    )
+  })
+})
+
+describe('resolveDropPosition — random override', () => {
+  const items = [{ x: 0.3, y: 0.4 }]
+
+  it('substitutes a random position when rand() < 0.20 and override is true', () => {
+    // rand sequence: override check (0.10 triggers) → x rand (0.5) → y rand (0.5)
+    // x = (0.5*2-1)*0.9 = 0,  y = 0
+    const result = resolveDropPosition(
+      'board-objects', true, items, seqRand(0.10, 0.5, 0.5),
+    )
+    expect(result).toEqual({ x: 0, y: 0 })
+  })
+
+  it('uses board item when rand() >= 0.20 even with override enabled', () => {
+    // rand sequence: override check (0.25 does not trigger) → item pick (0 → index 0)
+    const result = resolveDropPosition(
+      'board-objects', true, items, seqRand(0.25, 0),
+    )
+    expect(result).toEqual(items[0])
+  })
+
+  it('ignores low rand() when override is false', () => {
+    // rand() < 0.20 but override=false → still picks board item
+    const result = resolveDropPosition(
+      'board-objects', false, items, seqRand(0.10, 0),
+    )
+    expect(result).toEqual(items[0])
+  })
+})
+
+describe('resolveDropPosition — center', () => {
+  it('returns origin when rand() is 0.5 (no jitter)', () => {
+    // (0.5-0.5)*0.36 = 0 for both axes
+    expect(resolveDropPosition('center', false, [], seqRand(0.5, 0.5))).toEqual({
+      x: 0,
+      y: 0,
+    })
+  })
+
+  it('applies jitter within the declared ±0.18 range', () => {
+    const result = resolveDropPosition('center', false, [], Math.random)
+    expect(result!.x).toBeGreaterThanOrEqual(-0.18)
+    expect(result!.x).toBeLessThanOrEqual(0.18)
+    expect(result!.y).toBeGreaterThanOrEqual(-0.18)
+    expect(result!.y).toBeLessThanOrEqual(0.18)
+  })
+})
+
+describe('resolveDropPosition — edges', () => {
+  it('places drop on edge 0 (bottom) with rand=[0, 0]', () => {
+    // edge=floor(0*4)=0, t=0*2-1=-1 → {x:-1, y:-0.85}
+    expect(resolveDropPosition('edges', false, [], seqRand(0, 0))).toEqual({
+      x: -1,
+      y: -0.85,
+    })
+  })
+
+  it('places drop on edge 1 (top) with rand=[0.25, 0.75]', () => {
+    // edge=floor(0.25*4)=1, t=0.75*2-1=0.5 → {x:0.5, y:0.85}
+    expect(resolveDropPosition('edges', false, [], seqRand(0.25, 0.75))).toEqual({
+      x: 0.5,
+      y: 0.85,
+    })
+  })
+
+  it('places drop on edge 2 (left) with rand=[0.5, 0.5]', () => {
+    // edge=floor(0.5*4)=2, t=0.5*2-1=0 → {x:-0.85, y:0}
+    expect(resolveDropPosition('edges', false, [], seqRand(0.5, 0.5))).toEqual({
+      x: -0.85,
+      y: 0,
+    })
+  })
+
+  it('places drop on edge 3 (right) with rand=[0.75, 0.5]', () => {
+    // edge=floor(0.75*4)=3, t=0.5*2-1=0 → {x:0.85, y:0}
+    expect(resolveDropPosition('edges', false, [], seqRand(0.75, 0.5))).toEqual({
+      x: 0.85,
+      y: 0,
+    })
+  })
+})
+
+describe('resolveDropPosition — random', () => {
+  it('returns origin (0, 0) when rand() is 0.5', () => {
+    // (0.5*2-1)*0.9 = 0
+    expect(resolveDropPosition('random', false, [], seqRand(0.5, 0.5))).toEqual({
+      x: 0,
+      y: 0,
+    })
+  })
+
+  it('clamps result within ±0.9', () => {
+    const result = resolveDropPosition('random', false, [], Math.random)
+    expect(result!.x).toBeGreaterThanOrEqual(-0.9)
+    expect(result!.x).toBeLessThanOrEqual(0.9)
   })
 })

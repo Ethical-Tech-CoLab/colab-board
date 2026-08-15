@@ -139,7 +139,7 @@ const DEFAULT_PREFERENCES: Preferences = {
   dialMode: 'zoom',
   waterDropFrequency: 'slow' as const,
   waterDropLocation: 'board-objects' as const,
-  waterRandomLocationOverride: false,
+  waterRandomLocationOverride: true,
   waterDisturbancePreset: 'ripple' as const,
   waterDisturbanceCount: 1 as const,
   waterIntensity: 'medium' as const,
@@ -2051,7 +2051,7 @@ function App() {
                           }))
                         }
                       />
-                      Occasionally add random drops
+                      Occasionally add a random drop (on by default)
                     </label>
                   )}
                   <label>

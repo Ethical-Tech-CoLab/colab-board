@@ -8,16 +8,12 @@ import {
 } from './board'
 import type { BrandTheme } from './branding'
 import { drawScene, type ImageCache } from './render'
-import type {
-  BoardDocument,
-  BoardItem,
-  Camera,
-  WaterDropLocation,
-} from './types'
+import type { BoardDocument, BoardItem, Camera } from './types'
 import {
   probeWebGL,
   randomDropDelay,
   randomWaveAmplitude,
+  resolveDropPosition,
   INTENSITY_AMPLITUDE,
 } from './waterUtils'
 
@@ -96,7 +92,7 @@ void main() {
 
 export interface WaterScreensaverPrefs {
   waterDropFrequency: 'slow' | 'medium' | 'fast'
-  waterDropLocation: WaterDropLocation
+  waterDropLocation: 'board-objects' | 'center' | 'edges' | 'random'
   waterRandomLocationOverride: boolean
   waterDisturbancePreset: 'ripple' | 'drop' | 'splash'
   waterDisturbanceCount: 1 | 2 | 3
@@ -143,59 +139,6 @@ function getWaterColor(theme: BrandTheme) {
   return new THREE.Color(theme.browserThemeColor)
     .lerp(new THREE.Color(theme.canvas.background), 0.28)
     .lerp(new THREE.Color('#5ebfda'), 0.4)
-}
-
-/**
- * Resolve a drop position in plane coords [-1, 1] for the given location strategy.
- * Returns null when board-objects strategy is selected but there are no items.
- */
-function resolveDropPosition(
-  location: WaterDropLocation,
-  randomOverride: boolean,
-  items: BoardItem[],
-  fittedCamera: Camera,
-): { x: number; y: number } | null {
-  // Random override: with 20% probability substitute a fully random position
-  if (randomOverride && location === 'board-objects' && Math.random() < 0.20) {
-    return { x: (Math.random() * 2 - 1) * 0.9, y: (Math.random() * 2 - 1) * 0.9 }
-  }
-
-  switch (location) {
-    case 'board-objects': {
-      if (items.length === 0) return null
-      const item = items[Math.floor(Math.random() * items.length)]
-      const centroid = getItemCentroid(item)
-      const { u, v } = boardPointToTextureUV(
-        centroid.x,
-        centroid.y,
-        fittedCamera,
-        TEXTURE_W,
-        TEXTURE_H,
-      )
-      return texturePlaneCoords(u, v)
-    }
-    case 'center': {
-      // Small Gaussian-like jitter around centre
-      const jitter = 0.18
-      return {
-        x: (Math.random() - 0.5) * jitter * 2,
-        y: (Math.random() - 0.5) * jitter * 2,
-      }
-    }
-    case 'edges': {
-      // Pick a random edge and a random position along it
-      const edge = Math.floor(Math.random() * 4)
-      const t = Math.random() * 2 - 1
-      const margin = 0.85
-      if (edge === 0) return { x: t, y: -margin }
-      if (edge === 1) return { x: t, y: margin }
-      if (edge === 2) return { x: -margin, y: t }
-      return { x: margin, y: t }
-    }
-    case 'random':
-    default:
-      return { x: (Math.random() * 2 - 1) * 0.9, y: (Math.random() * 2 - 1) * 0.9 }
-  }
 }
 
 interface FallbackDeps {
@@ -264,13 +207,21 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
   const themeRef = useRef(theme)
   const prefsRef = useRef(prefs)
   const refreshBoardTextureRef = useRef<(() => void) | null>(null)
+  const syncPrefsRef = useRef<(() => void) | null>(null)
 
+  // Board content / theme changes → redraw the 1024 board texture.
   useEffect(() => {
     documentRef.current = boardDocument
     themeRef.current = theme
-    prefsRef.current = prefs
     refreshBoardTextureRef.current?.()
-  }, [boardDocument, theme, prefs])
+  }, [boardDocument, theme])
+
+  // Preference changes → update the ref and cheaply sync shader uniforms only.
+  // Never redraws the board texture.
+  useEffect(() => {
+    prefsRef.current = prefs
+    syncPrefsRef.current?.()
+  }, [prefs])
 
   useEffect(() => {
     const container = containerRef.current
@@ -390,19 +341,18 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
       material.uniforms.uWaterColor.value.copy(getWaterColor(themeRef.current))
     }
 
-    const syncIntensity = () => {
+    // Exposed via ref so the prefs effect can update uniforms without touching the texture.
+    const syncPrefs = () => {
       if (prefersReducedMotion) return
       material.uniforms.uAmplitude.value =
         INTENSITY_AMPLITUDE[prefsRef.current.waterIntensity]
     }
+    syncPrefsRef.current = syncPrefs
 
     const refreshBoardTexture = () => {
       if (destroyed) return
       syncTheme()
-      syncIntensity()
       const currentDocument = documentRef.current
-      // Recompute the fit-to-items camera so all board objects appear in the
-      // texture, then store it for ripple coordinate mapping.
       currentFittedCamera = fitBoardCamera(currentDocument.items, TEXTURE_W, TEXTURE_H)
       drawScene(
         boardContext,
@@ -440,11 +390,23 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
       const currentPrefs = prefsRef.current
       const items = documentRef.current.items
 
+      // Map all item centroids to plane coordinates so resolveDropPosition stays pure.
+      const itemPlanePositions = items.map((item) => {
+        const centroid = getItemCentroid(item)
+        const { u, v } = boardPointToTextureUV(
+          centroid.x,
+          centroid.y,
+          currentFittedCamera,
+          TEXTURE_W,
+          TEXTURE_H,
+        )
+        return texturePlaneCoords(u, v)
+      })
+
       const origin = resolveDropPosition(
         currentPrefs.waterDropLocation,
         currentPrefs.waterRandomLocationOverride,
-        items,
-        currentFittedCamera,
+        itemPlanePositions,
       )
       if (!origin) return
 
@@ -455,7 +417,6 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
         let x = origin.x
         let y = origin.y
         if (count > 1 || isSplash) {
-          // Spread sub-drops with slight offset so they are distinguishable
           const spread = isSplash ? 0.14 : 0.06
           x = clamp(origin.x + (Math.random() - 0.5) * spread * 2, -1, 1)
           y = clamp(origin.y + (Math.random() - 0.5) * spread * 2, -1, 1)
@@ -546,6 +507,7 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
     return () => {
       destroyed = true
       refreshBoardTextureRef.current = null
+      syncPrefsRef.current = null
       if (frameId !== undefined) cancelAnimationFrame(frameId)
       if (rippleTimeoutId !== undefined) clearTimeout(rippleTimeoutId)
       resizeObserver.disconnect()
@@ -560,5 +522,5 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
     }
   }, [])
 
-  return <div ref={containerRef} className='water-scene' aria-hidden='true' />
+  return <div ref={containerRef} className="water-scene" aria-hidden="true" />
 }
