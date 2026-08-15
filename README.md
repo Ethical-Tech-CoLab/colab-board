@@ -28,11 +28,12 @@ A local-first spatial thinking surface for touch displays, classrooms, studios, 
 - Event provenance and animated replay scoped to work after the latest clear
 - Replay Studio with Exact, Accelerated, Artistic Camera, Ghost Trails, and
   Infinite Evolution treatments plus six selectable ending effects
-- Continuously moving Session Replay, Ink Drift, CoLab Galaxy, Aurora Flow, and
-  Idea Constellation screensavers
+- Continuously moving Session Replay, Ink Drift, wide-orbit CoLab Galaxy, Aurora
+  Flow, and Idea Constellation screensavers
 - A lazy-loaded Three.js Water Surface screensaver with fitted board reflections,
   object-anchored ripples, interacting waves, live lighting, reduced-motion
-  behavior, and a lightweight 2D fallback when WebGL is unavailable
+  behavior, configurable drop rate/location/style/count/intensity, and a
+  lightweight 2D fallback when WebGL is unavailable
 - WarGames Terminal, faithfully adapted from the Ethical Tech CoLab
   [War-Games](https://github.com/Ethical-Tech-CoLab/War-Games) design system,
   and a moving Retro Snake screensaver
