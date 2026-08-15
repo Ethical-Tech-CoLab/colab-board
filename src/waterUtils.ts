@@ -1,4 +1,5 @@
 import type {
+  Camera,
   WaterDropFrequency,
   WaterDropLocation,
   WaterDisturbancePreset,
@@ -176,5 +177,48 @@ export function computeTextureDimensions(
   return {
     width: Math.max(1, Math.round(maxDim * viewportAspect)),
     height: maxDim,
+  }
+}
+
+export interface WaterViewportLayout {
+  halfWidth: number
+  halfHeight: number
+  planeScaleX: number
+  planeScaleZ: number
+}
+
+/**
+ * Matches an orthographic camera and water plane to the viewport so the board
+ * remains full bleed without perspective compression or exposed plane edges.
+ */
+export function computeWaterViewportLayout(
+  viewportAspect: number,
+): WaterViewportLayout {
+  if (viewportAspect >= 1) {
+    return {
+      halfWidth: viewportAspect,
+      halfHeight: 1,
+      planeScaleX: viewportAspect,
+      planeScaleZ: 1,
+    }
+  }
+  return {
+    halfWidth: 1,
+    halfHeight: 1 / viewportAspect,
+    planeScaleX: 1,
+    planeScaleZ: 1 / viewportAspect,
+  }
+}
+
+export function scaleCameraToRenderWidth(
+  camera: Camera,
+  renderWidth: number,
+  viewportWidth: number,
+): Camera {
+  const ratio = renderWidth / viewportWidth
+  return {
+    x: camera.x * ratio,
+    y: camera.y * ratio,
+    scale: camera.scale * ratio,
   }
 }

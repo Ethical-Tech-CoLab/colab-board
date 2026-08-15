@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import {
-  fitBoardCamera,
   boardPointToTextureUV,
   texturePlaneCoords,
   getItemBounds,
@@ -21,6 +20,8 @@ import {
   randomWaveAmplitude,
   resolveDropPosition,
   computeTextureDimensions,
+  computeWaterViewportLayout,
+  scaleCameraToRenderWidth,
   INTENSITY_AMPLITUDE,
   WATER_TEXTURE_MAX_DIM,
   WAVE_SPEED_MULTIPLIER,
@@ -111,6 +112,7 @@ export interface WaterScreensaverPrefs {
 
 interface WaterScreensaverProps {
   document: BoardDocument
+  camera: Camera
   theme: BrandTheme
   prefs: WaterScreensaverPrefs
 }
@@ -153,6 +155,7 @@ function getWaterColor(theme: BrandTheme) {
 
 interface FallbackDeps {
   documentRef: { current: BoardDocument }
+  cameraRef: { current: Camera }
   themeRef: { current: BrandTheme }
   refreshBoardTextureRef: { current: (() => void) | null }
   imageCache: ImageCache
@@ -171,9 +174,11 @@ function mountFallback2D(
   boardContext: CanvasRenderingContext2D,
   deps: FallbackDeps,
 ): () => void {
-  const { documentRef, themeRef, refreshBoardTextureRef, imageCache } = deps
+  const { documentRef, cameraRef, themeRef, refreshBoardTextureRef, imageCache } = deps
   let destroyed = false
-  let currentFittedCamera: Camera = { x: 0, y: 0, scale: 1 }
+  let currentTextureCamera: Camera = { x: 0, y: 0, scale: 1 }
+  let currentViewportWidth = 0
+  let currentViewportHeight = 0
 
   boardCanvas.style.cssText =
     'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;'
@@ -187,13 +192,17 @@ function mountFallback2D(
   const refresh = () => {
     if (destroyed) return
     const doc = documentRef.current
-    currentFittedCamera = fitBoardCamera(doc.items, boardCanvas.width, boardCanvas.height)
+    currentTextureCamera = scaleCameraToRenderWidth(
+      cameraRef.current,
+      boardCanvas.width,
+      Math.max(container.clientWidth, 1),
+    )
     drawScene(
       boardContext,
       boardCanvas.width,
       boardCanvas.height,
       doc.items,
-      currentFittedCamera,
+      currentTextureCamera,
       imageCache,
       {
         notes: true,
@@ -207,12 +216,20 @@ function mountFallback2D(
   }
 
   const updateLayout = () => {
-    const aspect = Math.max(container.clientWidth, 1) / Math.max(container.clientHeight, 1)
+    const viewportWidth = Math.max(container.clientWidth, 1)
+    const viewportHeight = Math.max(container.clientHeight, 1)
+    const viewportChanged =
+      viewportWidth !== currentViewportWidth || viewportHeight !== currentViewportHeight
+    currentViewportWidth = viewportWidth
+    currentViewportHeight = viewportHeight
+    const aspect = viewportWidth / viewportHeight
     const { width, height } = computeTextureDimensions(aspect)
-    if (boardCanvas.width === width && boardCanvas.height === height) return false
-    boardCanvas.width = width
-    boardCanvas.height = height
-    return true
+    const textureChanged = boardCanvas.width !== width || boardCanvas.height !== height
+    if (textureChanged) {
+      boardCanvas.width = width
+      boardCanvas.height = height
+    }
+    return viewportChanged || textureChanged
   }
 
   refreshBoardTextureRef.current = refresh
@@ -234,20 +251,22 @@ function mountFallback2D(
 }
 
 export default function WaterScreensaver(props: WaterScreensaverProps) {
-  const { document: boardDocument, theme, prefs } = props
+  const { document: boardDocument, camera: boardCamera, theme, prefs } = props
   const containerRef = useRef<HTMLDivElement>(null)
   const documentRef = useRef(boardDocument)
+  const cameraRef = useRef(boardCamera)
   const themeRef = useRef(theme)
   const prefsRef = useRef(prefs)
   const refreshBoardTextureRef = useRef<(() => void) | null>(null)
   const syncPrefsRef = useRef<(() => void) | null>(null)
 
-  // Board content / theme changes → redraw the 1024 board texture.
+  // Board content, camera, or theme changes redraw the board texture.
   useEffect(() => {
     documentRef.current = boardDocument
+    cameraRef.current = boardCamera
     themeRef.current = theme
     refreshBoardTextureRef.current?.()
-  }, [boardDocument, theme])
+  }, [boardCamera, boardDocument, theme])
 
   // Preference changes → update the ref and cheaply sync shader uniforms only.
   // Never redraws the board texture.
@@ -272,6 +291,7 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
     const imageCache: ImageCache = new Map()
     const fallbackDeps: FallbackDeps = {
       documentRef,
+      cameraRef,
       themeRef,
       refreshBoardTextureRef,
       imageCache,
@@ -309,8 +329,9 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
     container.appendChild(renderer.domElement)
 
     const scene = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 12)
-    camera.position.set(0, 1.55, 1.32)
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 12)
+    camera.position.set(0, 2, 0)
+    camera.up.set(0, 0, -1)
     camera.lookAt(0, 0, 0)
 
     const ambientLight = new THREE.AmbientLight('#9fdaf0', 0.35)
@@ -368,9 +389,11 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
     // aspect ratio so UV sampling does not distort board content.
     let currentTexW = WATER_TEXTURE_MAX_DIM
     let currentTexH = WATER_TEXTURE_MAX_DIM
+    let currentViewportWidth = 0
+    let currentViewportHeight = 0
     // Tracks the camera used for the most recent texture render so that ripple
     // positions can be mapped through the same transform.
-    let currentFittedCamera: Camera = { x: 0, y: 0, scale: 1 }
+    let currentTextureCamera: Camera = { x: 0, y: 0, scale: 1 }
     let destroyed = false
     let frameId: number | undefined
     let rippleTimeoutId: number | undefined
@@ -396,13 +419,17 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
       if (destroyed) return
       syncTheme()
       const currentDocument = documentRef.current
-      currentFittedCamera = fitBoardCamera(currentDocument.items, currentTexW, currentTexH)
+      currentTextureCamera = scaleCameraToRenderWidth(
+        cameraRef.current,
+        currentTexW,
+        Math.max(container.clientWidth, 1),
+      )
       drawScene(
         boardContext,
         currentTexW,
         currentTexH,
         currentDocument.items,
-        currentFittedCamera,
+        currentTextureCamera,
         imageCache,
         {
           notes: true,
@@ -439,7 +466,7 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
         const { u, v } = boardPointToTextureUV(
           centroid.x,
           centroid.y,
-          currentFittedCamera,
+          currentTextureCamera,
           currentTexW,
           currentTexH,
         )
@@ -481,28 +508,32 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
     const updateLayout = () => {
       const { width, height } = container.getBoundingClientRect()
       if (width <= 0 || height <= 0) return
+      const viewportChanged =
+        width !== currentViewportWidth || height !== currentViewportHeight
+      currentViewportWidth = width
+      currentViewportHeight = height
       renderer.setSize(width, height, false)
-      camera.aspect = width / height
-      camera.updateProjectionMatrix()
       const aspect = width / height
-      if (aspect >= 1) {
-        waterMesh.scale.set(aspect * 1.28, 1, 1.28)
-      } else {
-        waterMesh.scale.set(1.28, 1, (1 / aspect) * 1.28)
-      }
+      const layout = computeWaterViewportLayout(aspect)
+      camera.left = -layout.halfWidth
+      camera.right = layout.halfWidth
+      camera.top = layout.halfHeight
+      camera.bottom = -layout.halfHeight
+      camera.updateProjectionMatrix()
+      waterMesh.scale.set(layout.planeScaleX, 1, layout.planeScaleZ)
       // Resize the board canvas so its pixel aspect ratio matches the plane's
       // XZ footprint (= viewport aspect).  UV [0,1]×[0,1] then covers a
       // viewport-matched rectangle, so board content is not distorted.
       const { width: newTexW, height: newTexH } = computeTextureDimensions(aspect)
-      if (boardCanvas.width !== newTexW || boardCanvas.height !== newTexH) {
+      const textureChanged =
+        boardCanvas.width !== newTexW || boardCanvas.height !== newTexH
+      if (textureChanged) {
         boardCanvas.width = newTexW
         boardCanvas.height = newTexH
         currentTexW = newTexW
         currentTexH = newTexH
-        // Only re-render after the very first refresh to avoid a double draw
-        // on mount (updateLayout → resize → early-return, then refreshBoardTexture).
-        if (initialized) refreshBoardTexture()
       }
+      if (initialized && (viewportChanged || textureChanged)) refreshBoardTexture()
     }
 
     const resizeObserver = new ResizeObserver(updateLayout)

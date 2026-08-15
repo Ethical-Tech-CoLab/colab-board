@@ -459,7 +459,12 @@ export default function ReplayOverlay({
             <div className="water-scene" aria-label="Loading water surface" />
           }
         >
-          <WaterScreensaver document={document} theme={theme} prefs={waterPrefs} />
+          <WaterScreensaver
+            document={document}
+            camera={camera}
+            theme={theme}
+            prefs={waterPrefs}
+          />
         </Suspense>
       ) : (
         <div className="snake-scene">

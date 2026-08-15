@@ -11,6 +11,8 @@ import {
   getWaveAge,
   WAVE_SPEED_MULTIPLIER,
   computeTextureDimensions,
+  computeWaterViewportLayout,
+  scaleCameraToRenderWidth,
   WATER_TEXTURE_MAX_DIM,
 } from './waterUtils'
 
@@ -318,5 +320,25 @@ describe('computeTextureDimensions', () => {
     const { width, height } = computeTextureDimensions(viewportAspect)
     const texAspect = width / height
     expect(texAspect).toBeCloseTo(viewportAspect, 1)
+  })
+})
+
+describe('computeWaterViewportLayout', () => {
+  it.each([16 / 9, 4 / 3, 1, 9 / 16])(
+    'fills an aspect ratio of %f without overscan or exposed edges',
+    (aspect) => {
+      const layout = computeWaterViewportLayout(aspect)
+      expect(layout.planeScaleX).toBe(layout.halfWidth)
+      expect(layout.planeScaleZ).toBe(layout.halfHeight)
+      expect(layout.halfWidth / layout.halfHeight).toBeCloseTo(aspect)
+    },
+  )
+})
+
+describe('scaleCameraToRenderWidth', () => {
+  it('preserves screen composition when rendering to a smaller texture', () => {
+    expect(
+      scaleCameraToRenderWidth({ x: 320, y: 180, scale: 1.5 }, 1024, 1600),
+    ).toEqual({ x: 204.8, y: 115.2, scale: 0.96 })
   })
 })
