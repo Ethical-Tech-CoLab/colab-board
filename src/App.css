@@ -1535,7 +1535,8 @@ kbd {
   font-size: 10px;
 }
 
-.replay-studio-settings {
+.replay-studio-settings,
+.water-surface-settings {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
@@ -1546,7 +1547,8 @@ kbd {
   background: color-mix(in srgb, var(--brand-secondary) 32%, transparent);
 }
 
-.replay-studio-settings > span {
+.replay-studio-settings > span,
+.water-surface-settings > span {
   grid-column: 1 / -1;
   color: var(--brand-foreground);
   font-family: var(--brand-font-display);
@@ -1554,14 +1556,16 @@ kbd {
   text-transform: uppercase;
 }
 
-.replay-studio-settings label {
+.replay-studio-settings label,
+.water-surface-settings label {
   display: grid;
   gap: 4px;
   color: var(--brand-muted);
   font-size: 9px;
 }
 
-.replay-studio-settings select {
+.replay-studio-settings select,
+.water-surface-settings select {
   min-width: 0;
   height: 34px;
   color: var(--brand-foreground);
@@ -1569,6 +1573,19 @@ kbd {
   border: 1px solid var(--brand-border);
   border-radius: 8px;
   background: var(--brand-control);
+}
+
+.water-setting-inline {
+  grid-column: 1 / -1;
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px !important;
+}
+
+.water-setting-inline input {
+  margin: 0;
+  accent-color: var(--brand-accent);
 }
 
 .scene-options {
@@ -4959,6 +4976,7 @@ kbd {
   .settings-panel input,
   .settings-panel select,
   .replay-studio-settings select,
+  .water-surface-settings select,
   .replay-controls select {
     forced-color-adjust: auto;
     color: ButtonText;

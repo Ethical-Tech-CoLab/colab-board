@@ -42,6 +42,10 @@ export type TouchMode = 'pan' | 'draw'
 export type DialMode = 'zoom' | 'ink-size'
 export type SceneMode = 'canvas' | 'spatial'
 export type PerspectiveGuide = 'none' | 'grid' | 'one-point' | 'two-point'
+export type WaterDropFrequency = 'slow' | 'medium' | 'fast'
+export type WaterDropLocation = 'board-objects' | 'center' | 'edges' | 'random'
+export type WaterDisturbancePreset = 'ripple' | 'drop' | 'splash'
+export type WaterIntensity = 'subtle' | 'medium' | 'strong'
 
 export interface SpatialTransform {
   depth: number
@@ -155,6 +159,12 @@ export interface Preferences {
   overlayOpacity: number
   touchMode: TouchMode
   dialMode: DialMode
+  waterDropFrequency: WaterDropFrequency
+  waterDropLocation: WaterDropLocation
+  waterRandomLocationOverride: boolean
+  waterDisturbancePreset: WaterDisturbancePreset
+  waterDisturbanceCount: 1 | 2 | 3
+  waterIntensity: WaterIntensity
 }
 
 export type SaveState = 'loading' | 'saving' | 'saved' | 'error'

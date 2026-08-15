@@ -16,6 +16,7 @@ import {
   replayAt,
 } from './board'
 import type { BrandTheme } from './branding'
+import type { WaterScreensaverPrefs } from './WaterScreensaver'
 import { drawScene, type ImageCache } from './render'
 import { galaxyOrbitOriginX, galaxyOrbitRadius } from './galaxyScreensaver'
 import type {
@@ -38,6 +39,7 @@ interface ReplayOverlayProps {
   replayStyle: ReplayStyle
   endEffect: ReplayEndEffect
   theme: BrandTheme
+  waterPrefs: WaterScreensaverPrefs
   onClose: () => void
 }
 
@@ -50,6 +52,7 @@ export default function ReplayOverlay({
   replayStyle,
   endEffect,
   theme,
+  waterPrefs,
   onClose,
 }: ReplayOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -456,7 +459,7 @@ export default function ReplayOverlay({
             <div className="water-scene" aria-label="Loading water surface" />
           }
         >
-          <WaterScreensaver document={document} theme={theme} />
+          <WaterScreensaver document={document} theme={theme} prefs={waterPrefs} />
         </Suspense>
       ) : (
         <div className="snake-scene">

@@ -113,7 +113,12 @@ import type {
   StrokeItem,
   TimelineEvent,
   Tool,
+  WaterDisturbancePreset,
+  WaterDropFrequency,
+  WaterDropLocation,
+  WaterIntensity,
 } from './types'
+import { normalizeDisturbanceCount } from './waterUtils'
 import './App.css'
 
 const SpatialBoard = lazy(() => import('./SpatialBoard'))
@@ -132,6 +137,12 @@ const DEFAULT_PREFERENCES: Preferences = {
   overlayOpacity: 88,
   touchMode: 'pan',
   dialMode: 'zoom',
+  waterDropFrequency: 'slow' as const,
+  waterDropLocation: 'board-objects' as const,
+  waterRandomLocationOverride: false,
+  waterDisturbancePreset: 'ripple' as const,
+  waterDisturbanceCount: 1 as const,
+  waterIntensity: 'medium' as const,
 }
 
 const TOOL_CONFIG: Array<{
@@ -258,6 +269,33 @@ function loadPreferences(): Preferences {
     ).includes(parsed.screensaverMode ?? 'replay')
       ? (parsed.screensaverMode ?? DEFAULT_PREFERENCES.screensaverMode)
       : DEFAULT_PREFERENCES.screensaverMode
+    const waterDropFrequency = (['slow', 'medium', 'fast'] as const).includes(
+      parsed.waterDropFrequency ?? 'slow',
+    )
+      ? (parsed.waterDropFrequency ?? DEFAULT_PREFERENCES.waterDropFrequency)
+      : DEFAULT_PREFERENCES.waterDropFrequency
+    const waterDropLocation = (
+      ['board-objects', 'center', 'edges', 'random'] as const
+    ).includes(parsed.waterDropLocation ?? 'board-objects')
+      ? (parsed.waterDropLocation ?? DEFAULT_PREFERENCES.waterDropLocation)
+      : DEFAULT_PREFERENCES.waterDropLocation
+    const waterDisturbancePreset = (
+      ['ripple', 'drop', 'splash'] as const
+    ).includes(parsed.waterDisturbancePreset ?? 'ripple')
+      ? (parsed.waterDisturbancePreset ?? DEFAULT_PREFERENCES.waterDisturbancePreset)
+      : DEFAULT_PREFERENCES.waterDisturbancePreset
+    const waterIntensity = (
+      ['subtle', 'medium', 'strong'] as const
+    ).includes(parsed.waterIntensity ?? 'medium')
+      ? (parsed.waterIntensity ?? DEFAULT_PREFERENCES.waterIntensity)
+      : DEFAULT_PREFERENCES.waterIntensity
+    const waterDisturbanceCount = normalizeDisturbanceCount(
+      parsed.waterDisturbanceCount,
+    )
+    const waterRandomLocationOverride =
+      typeof parsed.waterRandomLocationOverride === 'boolean'
+        ? parsed.waterRandomLocationOverride
+        : DEFAULT_PREFERENCES.waterRandomLocationOverride
     return {
       ...DEFAULT_PREFERENCES,
       ...parsed,
@@ -265,6 +303,12 @@ function loadPreferences(): Preferences {
       sceneMode,
       perspectiveGuide,
       screensaverMode,
+      waterDropFrequency,
+      waterDropLocation,
+      waterRandomLocationOverride,
+      waterDisturbancePreset,
+      waterDisturbanceCount,
+      waterIntensity,
       replayStyle: (
         ['exact', 'accelerated', 'artistic', 'ghosts', 'evolution'] as const
       ).includes(parsed.replayStyle ?? 'accelerated')
@@ -1959,6 +2003,107 @@ function App() {
                   </label>
                 </div>
               )}
+              {preferences.screensaverMode === 'water' && (
+                <div className="water-surface-settings">
+                  <span>Water Surface</span>
+                  <label>
+                    Drop rate
+                    <select
+                      value={preferences.waterDropFrequency}
+                      onChange={(event) =>
+                        setPreferences((current) => ({
+                          ...current,
+                          waterDropFrequency: event.target.value as WaterDropFrequency,
+                        }))
+                      }
+                    >
+                      <option value="slow">Slow — every 8–16 s</option>
+                      <option value="medium">Medium — every 3–6 s</option>
+                      <option value="fast">Fast — every 1–2.5 s</option>
+                    </select>
+                  </label>
+                  <label>
+                    Drop location
+                    <select
+                      value={preferences.waterDropLocation}
+                      onChange={(event) =>
+                        setPreferences((current) => ({
+                          ...current,
+                          waterDropLocation: event.target.value as WaterDropLocation,
+                        }))
+                      }
+                    >
+                      <option value="board-objects">Board object anchors</option>
+                      <option value="center">Centre of board</option>
+                      <option value="edges">Along edges</option>
+                      <option value="random">Anywhere at random</option>
+                    </select>
+                  </label>
+                  {preferences.waterDropLocation === 'board-objects' && (
+                    <label className="water-setting-inline">
+                      <input
+                        type="checkbox"
+                        checked={preferences.waterRandomLocationOverride}
+                        onChange={(event) =>
+                          setPreferences((current) => ({
+                            ...current,
+                            waterRandomLocationOverride: event.target.checked,
+                          }))
+                        }
+                      />
+                      Occasionally add random drops
+                    </label>
+                  )}
+                  <label>
+                    Disturbance style
+                    <select
+                      value={preferences.waterDisturbancePreset}
+                      onChange={(event) =>
+                        setPreferences((current) => ({
+                          ...current,
+                          waterDisturbancePreset: event.target.value as WaterDisturbancePreset,
+                        }))
+                      }
+                    >
+                      <option value="ripple">Gentle ripple</option>
+                      <option value="drop">Raindrop</option>
+                      <option value="splash">Splash</option>
+                    </select>
+                  </label>
+                  <label>
+                    Drops per burst
+                    <select
+                      value={preferences.waterDisturbanceCount}
+                      onChange={(event) =>
+                        setPreferences((current) => ({
+                          ...current,
+                          waterDisturbanceCount: Number(event.target.value) as 1 | 2 | 3,
+                        }))
+                      }
+                    >
+                      <option value="1">Single drop</option>
+                      <option value="2">Two drops</option>
+                      <option value="3">Three drops</option>
+                    </select>
+                  </label>
+                  <label>
+                    Wave height
+                    <select
+                      value={preferences.waterIntensity}
+                      onChange={(event) =>
+                        setPreferences((current) => ({
+                          ...current,
+                          waterIntensity: event.target.value as WaterIntensity,
+                        }))
+                      }
+                    >
+                      <option value="subtle">Subtle</option>
+                      <option value="medium">Medium</option>
+                      <option value="strong">Strong</option>
+                    </select>
+                  </label>
+                </div>
+              )}
               <button
                 className="preview-screensaver"
                 type="button"
@@ -2181,6 +2326,14 @@ function App() {
           replayStyle={preferences.replayStyle}
           endEffect={preferences.replayEndEffect}
           theme={activeTheme}
+          waterPrefs={{
+            waterDropFrequency: preferences.waterDropFrequency,
+            waterDropLocation: preferences.waterDropLocation,
+            waterRandomLocationOverride: preferences.waterRandomLocationOverride,
+            waterDisturbancePreset: preferences.waterDisturbancePreset,
+            waterDisturbanceCount: preferences.waterDisturbanceCount,
+            waterIntensity: preferences.waterIntensity,
+          }}
           onClose={() => setReplay(null)}
         />
       )}
