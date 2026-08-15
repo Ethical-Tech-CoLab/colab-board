@@ -325,7 +325,7 @@ function App() {
   const [liveSessionOpen, setLiveSessionOpen] = useState(false)
   const [liveSessionIntent] = useState<{ code: string; valid: boolean } | null>(() => {
     const raw = getRawLiveSessionParam(window.location.hash)
-    if (!raw) return null
+    if (raw === null) return null
     return { code: raw, valid: isValidTransferCode(raw) }
   })
   const [liveSessionState, setLiveSessionState] =

@@ -116,6 +116,10 @@ describe('live session URLs', () => {
       expect(getRawLiveSessionParam('#other=value')).toBeNull()
     })
 
+    it('preserves an empty session parameter as an invalid intent', () => {
+      expect(getRawLiveSessionParam('#session=')).toBe('')
+    })
+
     it('distinguishes invalid from valid: parseLiveSessionCode rejects what getRawLiveSessionParam accepts', () => {
       const invalidHash = '#session=SHORT'
       expect(getRawLiveSessionParam(invalidHash)).toBe('SHORT')

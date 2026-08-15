@@ -54,9 +54,13 @@ export default function LiveSessionDialog({
   onDisconnect,
   onClose,
 }: LiveSessionDialogProps) {
-  const [role, setRole] = useState<LiveSessionRole>(initialCode ? 'join' : 'host')
+  const [role, setRole] = useState<LiveSessionRole>(
+    initialCode !== undefined ? 'join' : 'host',
+  )
   const [code, setCode] = useState(
-    initialCode ? formatTransferCode(normalizeTransferCode(initialCode)) : '',
+    initialCode !== undefined
+      ? formatTransferCode(normalizeTransferCode(initialCode))
+      : '',
   )
   const [codeError, setCodeError] = useState(initialCodeError ?? '')
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle')

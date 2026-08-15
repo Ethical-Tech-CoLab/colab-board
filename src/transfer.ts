@@ -243,7 +243,7 @@ export function parseLiveSessionCode(hash: string): string | null {
 
 export function getRawLiveSessionParam(hash: string): string | null {
   const value = new URLSearchParams(hash.slice(1)).get('session')
-  return value ? normalizeTransferCode(value) : null
+  return value === null ? null : normalizeTransferCode(value)
 }
 
 export function buildLiveSessionLink(
@@ -259,8 +259,10 @@ export function buildLiveSessionLink(
 }
 
 export function createLiveSessionLink(code: string): string {
-  const base = new URL(import.meta.env.BASE_URL, window.location.href).toString()
-  return buildLiveSessionLink(base, window.location.hash, code)
+  const base = new URL(window.location.href)
+  base.pathname = import.meta.env.BASE_URL
+  base.hash = ''
+  return buildLiveSessionLink(base.toString(), window.location.hash, code)
 }
 
 export function getLiveSessionIntent(): string | null {
