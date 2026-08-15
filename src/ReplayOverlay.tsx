@@ -62,6 +62,13 @@ export default function ReplayOverlay({
     () => getReplayTimelineSinceLastClear(document.timeline),
     [document.timeline],
   )
+
+  // Pre-sort once so replayAt can skip its internal O(n log n) sort every frame.
+  const sortedTimeline = useMemo(
+    () => [...replayTimeline].sort((a, b) => a.at - b.at),
+    [replayTimeline],
+  )
+
   const sourceDuration = getReplayDuration(replayTimeline)
   const playbackDuration = Math.min(90_000, Math.max(6_000, sourceDuration))
   const fadeDuration = autoLoop ? 1800 : 1200
@@ -72,102 +79,133 @@ export default function ReplayOverlay({
     [document.items],
   )
 
+  // True while the overlay is open; set to false in the exit handler to gate
+  // any rAF callback that fires between the input event and React's unmount.
+  const activeRef = useRef(true)
+
+  // Stable reference to the current draw function. Updated via useLayoutEffect
+  // so the animation loop can draw directly without going through React state.
+  const drawRef = useRef<(elapsedMs: number) => void>(() => {})
+
+  useLayoutEffect(() => {
+    if (mode !== 'replay') return
+    drawRef.current = (elapsedMs: number) => {
+      const canvas = canvasRef.current
+      const context = canvas?.getContext('2d')
+      if (!canvas || !context) return
+
+      const sourceElapsed =
+        sourceDuration === 0
+          ? 0
+          : Math.min(1, elapsedMs / playbackDuration) * sourceDuration
+      const frame =
+        sortedTimeline.length > 0
+          ? replayAt(sortedTimeline, sourceElapsed, true)
+          : {
+              items: document.timeline.length === 0 ? document.items : [],
+              camera: { x: 0, y: 0, scale: 1 },
+            }
+      const replayCamera =
+        replayStyle === 'artistic' || replayStyle === 'evolution'
+          ? getAmbientReplayCamera(frame.camera, elapsedMs, size)
+          : frame.camera
+      drawScene(
+        context,
+        size.width,
+        size.height,
+        frame.items,
+        replayCamera,
+        imageCache.current,
+        {
+          notes: true,
+          watermark: document.watermark,
+          theme: theme.canvas,
+          onImageLoad: () => setImageRevision((value) => value + 1),
+        },
+      )
+      if (replayStyle === 'ghosts' && sortedTimeline.length > 0) {
+        for (const [offset, alpha] of [
+          [sourceDuration * 0.025, 0.13],
+          [sourceDuration * 0.05, 0.07],
+        ] as const) {
+          const ghost = replayAt(
+            sortedTimeline,
+            Math.max(0, sourceElapsed - offset),
+            true,
+          )
+          context.save()
+          context.globalAlpha = alpha
+          context.filter = 'blur(0.6px) saturate(1.35)'
+          drawScene(
+            context,
+            size.width,
+            size.height,
+            ghost.items,
+            replayCamera,
+            imageCache.current,
+            {
+              clear: false,
+              background: false,
+              grid: false,
+              notes: true,
+              theme: theme.canvas,
+            },
+          )
+          context.restore()
+        }
+      }
+    }
+  }, [
+    document.items,
+    document.timeline.length,
+    document.watermark,
+    mode,
+    playbackDuration,
+    replayStyle,
+    size,
+    sortedTimeline,
+    sourceDuration,
+    theme.canvas,
+    imageRevision,
+  ])
+
   useLayoutEffect(() => {
     const resize = () => setSize({ width: innerWidth, height: innerHeight })
     window.addEventListener('resize', resize)
     return () => window.removeEventListener('resize', resize)
   }, [])
 
+  // Resize the canvas backing store only when viewport size changes.
+  // Setting canvas.width allocates a new backing store; doing it every frame
+  // causes unnecessary GC pressure and frame jank.
   useEffect(() => {
     if (mode !== 'replay') return
     const canvas = canvasRef.current
-    const context = canvas?.getContext('2d')
-    if (!canvas || !context) return
+    if (!canvas) return
     const dpr = Math.min(devicePixelRatio || 1, 2)
     canvas.width = size.width * dpr
     canvas.height = size.height * dpr
     canvas.style.width = `${size.width}px`
     canvas.style.height = `${size.height}px`
-    context.setTransform(dpr, 0, 0, dpr, 0, 0)
+    const context = canvas.getContext('2d')
+    if (context) context.setTransform(dpr, 0, 0, dpr, 0, 0)
+  }, [mode, size])
 
-    const sourceElapsed =
-      sourceDuration === 0
-        ? 0
-        : Math.min(1, elapsed / playbackDuration) * sourceDuration
-    const frame =
-      replayTimeline.length > 0
-        ? replayAt(replayTimeline, sourceElapsed)
-        : {
-            items: document.timeline.length === 0 ? document.items : [],
-            camera: { x: 0, y: 0, scale: 1 },
-          }
-    const replayCamera =
-      replayStyle === 'artistic' || replayStyle === 'evolution'
-      ? getAmbientReplayCamera(frame.camera, elapsed, size)
-      : frame.camera
-    drawScene(
-      context,
-      size.width,
-      size.height,
-      frame.items,
-      replayCamera,
-      imageCache.current,
-      {
-        notes: true,
-        watermark: document.watermark,
-        theme: theme.canvas,
-        onImageLoad: () => setImageRevision((value) => value + 1),
-      },
-    )
-    if (replayStyle === 'ghosts' && replayTimeline.length > 0) {
-      for (const [offset, alpha] of [
-        [sourceDuration * 0.025, 0.13],
-        [sourceDuration * 0.05, 0.07],
-      ] as const) {
-        const ghost = replayAt(
-          replayTimeline,
-          Math.max(0, sourceElapsed - offset),
-        )
-        context.save()
-        context.globalAlpha = alpha
-        context.filter = 'blur(0.6px) saturate(1.35)'
-        drawScene(
-          context,
-          size.width,
-          size.height,
-          ghost.items,
-          replayCamera,
-          imageCache.current,
-          {
-            clear: false,
-            background: false,
-            grid: false,
-            notes: true,
-            theme: theme.canvas,
-          },
-        )
-        context.restore()
-      }
-    }
-  }, [
-    autoLoop,
-    document.items,
-    document.timeline,
-    document.watermark,
-    elapsed,
-    imageRevision,
-    mode,
-    playbackDuration,
-    replayTimeline,
-    replayStyle,
-    size,
-    sourceDuration,
-    theme.canvas,
-  ])
+  // Redraw when non-elapsed dependencies change (replayStyle, image loads, resize).
+  useEffect(() => {
+    if (mode !== 'replay') return
+    drawRef.current(elapsedRef.current)
+  }, [mode, sortedTimeline, replayStyle, imageRevision, size])
 
+  // Animation loop — draws directly via drawRef to keep React off the hot path.
+  // For autoLoop (screensaver) we skip setElapsed while the canvas is animating
+  // (fade is always 1 during playback) and only update state when the fade begins
+  // so the CSS --replay-fade variable tracks correctly.
   useEffect(() => {
     if (!playing || mode !== 'replay') return
     const animate = (time: number) => {
+      // Exit was requested; do not schedule another frame.
+      if (!activeRef.current) return
       if (lastFrame.current === undefined) lastFrame.current = time
       const delta = time - lastFrame.current
       lastFrame.current = time
@@ -181,7 +219,18 @@ export default function ReplayOverlay({
         }
       }
       elapsedRef.current = next
-      setElapsed(next)
+
+      // Draw the frame directly — no React state update, no re-render.
+      drawRef.current(next)
+
+      // Update React state only when needed:
+      // - In non-autoLoop (Replay Studio): always, for the smooth progress bar.
+      // - In autoLoop (screensaver): only during the fade phase at end of cycle,
+      //   so the CSS --replay-fade variable is kept accurate.
+      if (!autoLoop || next > playbackDuration) {
+        setElapsed(next)
+      }
+
       frameRef.current = requestAnimationFrame(animate)
     }
     frameRef.current = requestAnimationFrame(animate)
@@ -191,9 +240,18 @@ export default function ReplayOverlay({
     }
   }, [autoLoop, mode, playbackDuration, playing, speed, totalDuration])
 
+  // Exit handler. Runs synchronously on user input: cancels the pending rAF
+  // and gates the loop via activeRef before calling onClose so no stale frame
+  // can fire between the event and React's unmount commit.
   useEffect(() => {
     const closeOnInput = () => {
-      if (autoLoop) onClose()
+      if (!autoLoop) return
+      activeRef.current = false
+      if (frameRef.current !== undefined) {
+        cancelAnimationFrame(frameRef.current)
+        frameRef.current = undefined
+      }
+      onClose()
     }
     window.addEventListener('pointerdown', closeOnInput)
     window.addEventListener('keydown', closeOnInput)

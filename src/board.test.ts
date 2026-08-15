@@ -111,6 +111,42 @@ describe('board document events', () => {
     expect(frame.camera).toEqual(camera)
   })
 
+  it('produces identical output when called with a pre-sorted timeline', () => {
+    const timeline: TimelineEvent[] = [
+      { id: 'event-2', type: 'add', at: 1_100, item: stroke },
+      { id: 'event-1', type: 'add', at: 1_000, item: note },
+    ]
+    const sorted = [...timeline].sort((a, b) => a.at - b.at)
+
+    const unsortedResult = replayAt(timeline, 300)
+    const presortedResult = replayAt(sorted, 300, true)
+
+    expect(presortedResult.items).toHaveLength(unsortedResult.items.length)
+    expect(presortedResult.camera).toEqual(unsortedResult.camera)
+  })
+
+  it('handles ghost-trail offsets with a pre-sorted timeline correctly', () => {
+    const timeline: TimelineEvent[] = [
+      { id: 'event-1', type: 'add', at: 1_000, item: note },
+      { id: 'event-2', type: 'add', at: 1_100, item: stroke },
+    ]
+    const sorted = [...timeline].sort((a, b) => a.at - b.at)
+    const sourceDuration = getReplayDuration(sorted)
+
+    // Primary frame
+    const primary = replayAt(sorted, sourceDuration * 0.5, true)
+    // Ghost frame at -2.5% offset (as used by Ghost Trails)
+    const ghostOffset = sourceDuration * 0.025
+    const ghost = replayAt(
+      sorted,
+      Math.max(0, sourceDuration * 0.5 - ghostOffset),
+      true,
+    )
+
+    // Ghost should have the same or fewer items than the primary frame
+    expect(ghost.items.length).toBeLessThanOrEqual(primary.items.length)
+  })
+
   it('starts a replay after the most recent clear event', () => {
     const timeline: TimelineEvent[] = [
       { id: 'event-1', type: 'add', at: 1_000, item: note },
