@@ -10,6 +10,8 @@ import {
   resolveDropPosition,
   getWaveAge,
   WAVE_SPEED_MULTIPLIER,
+  computeTextureDimensions,
+  WATER_TEXTURE_MAX_DIM,
 } from './waterUtils'
 
 // Build a minimal HTMLCanvasElement-shaped stub that returns a fixed context.
@@ -262,5 +264,59 @@ describe('resolveDropPosition — random', () => {
     const result = resolveDropPosition('random', false, [], Math.random)
     expect(result!.x).toBeGreaterThanOrEqual(-0.9)
     expect(result!.x).toBeLessThanOrEqual(0.9)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// computeTextureDimensions — aspect-ratio / plane / texture sizing
+// ---------------------------------------------------------------------------
+
+describe('computeTextureDimensions', () => {
+  it('returns square 1024×1024 for a 1:1 aspect ratio', () => {
+    expect(computeTextureDimensions(1)).toEqual({ width: 1024, height: 1024 })
+  })
+
+  it('keeps width at maxDim and reduces height for 16:9 landscape', () => {
+    const { width, height } = computeTextureDimensions(16 / 9)
+    expect(width).toBe(WATER_TEXTURE_MAX_DIM)
+    expect(height).toBe(Math.round(WATER_TEXTURE_MAX_DIM / (16 / 9))) // 576
+    // Resulting ratio should match the viewport aspect within 1 pixel of rounding
+    expect(width / height).toBeCloseTo(16 / 9, 1)
+  })
+
+  it('keeps height at maxDim and reduces width for 9:16 portrait', () => {
+    const { width, height } = computeTextureDimensions(9 / 16)
+    expect(height).toBe(WATER_TEXTURE_MAX_DIM)
+    expect(width).toBe(Math.round(WATER_TEXTURE_MAX_DIM * (9 / 16))) // 576
+    expect(height / width).toBeCloseTo(16 / 9, 1)
+  })
+
+  it('keeps width at maxDim and reduces height for 4:3', () => {
+    const { width, height } = computeTextureDimensions(4 / 3)
+    expect(width).toBe(WATER_TEXTURE_MAX_DIM)
+    expect(height).toBe(Math.round(WATER_TEXTURE_MAX_DIM / (4 / 3))) // 768
+    expect(width / height).toBeCloseTo(4 / 3, 1)
+  })
+
+  it('never returns a zero dimension', () => {
+    // Extreme aspect ratios (ultra-wide or ultra-tall)
+    const landscape = computeTextureDimensions(5)
+    const portrait = computeTextureDimensions(0.1)
+    expect(landscape.height).toBeGreaterThanOrEqual(1)
+    expect(portrait.width).toBeGreaterThanOrEqual(1)
+  })
+
+  it('respects a custom maxDim', () => {
+    const { width, height } = computeTextureDimensions(2, 512)
+    expect(width).toBe(512)
+    expect(height).toBe(256)
+  })
+
+  it('ensures texture × viewport-aspect eliminates distortion for 16:9', () => {
+    // The distortion factor equals (texW/texH) / viewportAspect; it should be 1.
+    const viewportAspect = 16 / 9
+    const { width, height } = computeTextureDimensions(viewportAspect)
+    const texAspect = width / height
+    expect(texAspect).toBeCloseTo(viewportAspect, 1)
   })
 })

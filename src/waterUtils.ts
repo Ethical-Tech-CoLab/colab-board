@@ -143,3 +143,38 @@ export function resolveDropPosition(
       return { x: (rand() * 2 - 1) * 0.9, y: (rand() * 2 - 1) * 0.9 }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Texture-sizing helpers
+// ---------------------------------------------------------------------------
+
+/** Maximum pixel dimension for the board texture (longer axis). */
+export const WATER_TEXTURE_MAX_DIM = 1024
+
+/**
+ * Compute board-texture pixel dimensions whose aspect ratio matches the water
+ * plane's XZ footprint (= viewport aspect ratio).
+ *
+ * Keeping texture-aspect === plane-aspect ensures UV [0,1]×[0,1] maps content
+ * proportionally: a viewport-width/viewport-height ratio plane uses a texture
+ * of that same ratio, so objects on the board appear undistorted.
+ *
+ * The longer axis is capped at `maxDim` (default 1024):
+ *   landscape (A ≥ 1): width = maxDim, height = round(maxDim / A)
+ *   portrait  (A < 1): width = round(maxDim * A), height = maxDim
+ */
+export function computeTextureDimensions(
+  viewportAspect: number,
+  maxDim = WATER_TEXTURE_MAX_DIM,
+): { width: number; height: number } {
+  if (viewportAspect >= 1) {
+    return {
+      width: maxDim,
+      height: Math.max(1, Math.round(maxDim / viewportAspect)),
+    }
+  }
+  return {
+    width: Math.max(1, Math.round(maxDim * viewportAspect)),
+    height: maxDim,
+  }
+}
