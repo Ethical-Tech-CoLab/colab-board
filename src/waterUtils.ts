@@ -65,7 +65,8 @@ export const WAVE_SPEED_MULTIPLIER: Record<WaterWaveSpeed, number> = {
   double: 2,
 }
 
-export const WATER_RIPPLE_LIFETIME_SECONDS = 9
+export const WATER_RIPPLE_FADE_START_SECONDS = 7
+export const WATER_RIPPLE_LIFETIME_SECONDS = 12
 export const WATER_DISSIPATE_PAUSE_MS = 3_000
 
 export function scheduledDropDelay(

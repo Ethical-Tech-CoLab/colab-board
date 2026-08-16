@@ -23,6 +23,7 @@ import {
   computeWaterViewportLayout,
   scaleCameraToRenderWidth,
   INTENSITY_AMPLITUDE,
+  WATER_RIPPLE_FADE_START_SECONDS,
   WATER_RIPPLE_LIFETIME_SECONDS,
   WATER_TEXTURE_MAX_DIM,
   WAVE_SPEED_MULTIPLIER,
@@ -45,8 +46,17 @@ float waveH(vec2 p, vec4 w, float t) {
   float age = (t - w.z) * uWaveSpeed;
   if (age < 0.0 || age > ${WATER_RIPPLE_LIFETIME_SECONDS.toFixed(1)}) return 0.0;
   float dist = length(p - w.xy);
-  float env = exp(-(age * 0.35 + dist * 1.1)) * w.w;
-  return sin((dist - age * 0.55) * 34.0) * env;
+  float radius = age * 0.32;
+  float radialOffset = dist - radius;
+  float arrived = 1.0 - smoothstep(0.0, 0.08, radialOffset);
+  float packet = exp(-abs(radialOffset) * 4.5);
+  float distanceFade = exp(-dist * 0.42);
+  float lifetimeFade = 1.0 - smoothstep(
+    ${WATER_RIPPLE_FADE_START_SECONDS.toFixed(1)},
+    ${WATER_RIPPLE_LIFETIME_SECONDS.toFixed(1)},
+    age
+  );
+  return sin(radialOffset * 34.0) * arrived * packet * distanceFade * lifetimeFade * w.w;
 }
 
 void main() {
@@ -57,8 +67,6 @@ void main() {
     if (i >= uWaveCount) break;
     h += waveH(planePos, uWaves[i], uTime);
   }
-  float ambientTime = uTime * uWaveSpeed;
-  h += sin(planePos.x * 3.1 + ambientTime * 0.65) * cos(planePos.y * 2.7 + ambientTime * 0.48) * 0.015;
   vHeight = h;
   vec3 displaced = position + vec3(0.0, h * uAmplitude, 0.0);
   vPos = (modelMatrix * vec4(displaced, 1.0)).xyz;
@@ -534,6 +542,7 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
       const textureChanged =
         boardCanvas.width !== newTexW || boardCanvas.height !== newTexH
       if (textureChanged) {
+        boardTexture.dispose()
         boardCanvas.width = newTexW
         boardCanvas.height = newTexH
         currentTexW = newTexW

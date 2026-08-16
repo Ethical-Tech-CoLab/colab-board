@@ -15,6 +15,7 @@ import {
   scaleCameraToRenderWidth,
   scheduledDropDelay,
   WATER_DISSIPATE_PAUSE_MS,
+  WATER_RIPPLE_FADE_START_SECONDS,
   WATER_RIPPLE_LIFETIME_SECONDS,
   WATER_TEXTURE_MAX_DIM,
 } from './waterUtils'
@@ -91,9 +92,9 @@ describe('water drop scheduling', () => {
   })
 
   it.each([
-    ['half', 21_000],
-    ['normal', 12_000],
-    ['double', 7_500],
+    ['half', 27_000],
+    ['normal', 15_000],
+    ['double', 9_000],
   ] as const)(
     'waits for %s-speed ripples to dissipate plus three seconds in slow mode',
     (speed, expected) => {
@@ -120,6 +121,16 @@ describe('water drop scheduling', () => {
     expect(scheduledDropDelay('slow', 'normal', true)).toBe(
       WATER_RIPPLE_LIFETIME_SECONDS * 1_000 + WATER_DISSIPATE_PAUSE_MS,
     )
+  })
+
+  it('reserves the final part of each ripple lifetime for gradual fading', () => {
+    expect(WATER_RIPPLE_FADE_START_SECONDS).toBeGreaterThan(0)
+    expect(WATER_RIPPLE_LIFETIME_SECONDS).toBeGreaterThan(
+      WATER_RIPPLE_FADE_START_SECONDS,
+    )
+    expect(
+      WATER_RIPPLE_LIFETIME_SECONDS - WATER_RIPPLE_FADE_START_SECONDS,
+    ).toBeGreaterThanOrEqual(5)
   })
 })
 
