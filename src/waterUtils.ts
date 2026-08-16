@@ -36,7 +36,7 @@ export function probeWebGL(
 // Water screensaver configuration utilities
 // ---------------------------------------------------------------------------
 
-/** Min/max millisecond range for the scheduled-drop timer per frequency level */
+/** Initial Slow delay and recurring Medium/Fast cadence ranges. */
 export const FREQUENCY_RANGES: Record<WaterDropFrequency, [number, number]> = {
   slow:   [8_000, 16_000],
   medium: [3_000,  6_000],
@@ -44,9 +44,12 @@ export const FREQUENCY_RANGES: Record<WaterDropFrequency, [number, number]> = {
 }
 
 /** Return a random delay (ms) for a given frequency level */
-export function randomDropDelay(frequency: WaterDropFrequency): number {
+export function randomDropDelay(
+  frequency: WaterDropFrequency,
+  random: () => number = Math.random,
+): number {
   const [min, max] = FREQUENCY_RANGES[frequency]
-  return min + Math.random() * (max - min)
+  return min + random() * (max - min)
 }
 
 /** Global uAmplitude shader uniform value per intensity level */
@@ -60,6 +63,25 @@ export const WAVE_SPEED_MULTIPLIER: Record<WaterWaveSpeed, number> = {
   half: 0.5,
   normal: 1,
   double: 2,
+}
+
+export const WATER_RIPPLE_LIFETIME_SECONDS = 9
+export const WATER_DISSIPATE_PAUSE_MS = 3_000
+
+export function scheduledDropDelay(
+  frequency: WaterDropFrequency,
+  waveSpeed: WaterWaveSpeed,
+  waitForDissipation: boolean,
+  random: () => number = Math.random,
+): number {
+  if (frequency === 'slow' && waitForDissipation) {
+    return (
+      (WATER_RIPPLE_LIFETIME_SECONDS * 1_000) /
+        WAVE_SPEED_MULTIPLIER[waveSpeed] +
+      WATER_DISSIPATE_PAUSE_MS
+    )
+  }
+  return randomDropDelay(frequency, random)
 }
 
 export function getWaveAge(

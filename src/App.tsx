@@ -2025,7 +2025,7 @@ function App() {
                         }))
                       }
                     >
-                      <option value="slow">Slow — every 8–16 s</option>
+                      <option value="slow">Slow — dissipate + 3 s</option>
                       <option value="medium">Medium — every 3–6 s</option>
                       <option value="fast">Fast — every 1–2.5 s</option>
                     </select>

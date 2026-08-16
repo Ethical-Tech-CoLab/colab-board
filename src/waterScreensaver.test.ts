@@ -13,6 +13,9 @@ import {
   computeTextureDimensions,
   computeWaterViewportLayout,
   scaleCameraToRenderWidth,
+  scheduledDropDelay,
+  WATER_DISSIPATE_PAUSE_MS,
+  WATER_RIPPLE_LIFETIME_SECONDS,
   WATER_TEXTURE_MAX_DIM,
 } from './waterUtils'
 
@@ -85,6 +88,38 @@ describe('water drop scheduling', () => {
   it('orders frequency ranges from slowest to fastest', () => {
     expect(FREQUENCY_RANGES.slow[0]).toBeGreaterThan(FREQUENCY_RANGES.medium[0])
     expect(FREQUENCY_RANGES.medium[0]).toBeGreaterThan(FREQUENCY_RANGES.fast[0])
+  })
+
+  it.each([
+    ['half', 21_000],
+    ['normal', 12_000],
+    ['double', 7_500],
+  ] as const)(
+    'waits for %s-speed ripples to dissipate plus three seconds in slow mode',
+    (speed, expected) => {
+      expect(scheduledDropDelay('slow', speed, true)).toBe(expected)
+    },
+  )
+
+  it('uses the original random slow delay before the first ripple', () => {
+    expect(scheduledDropDelay('slow', 'half', false, () => 0)).toBe(
+      FREQUENCY_RANGES.slow[0],
+    )
+  })
+
+  it('keeps medium and fast cadence-based while ripples overlap', () => {
+    expect(scheduledDropDelay('medium', 'half', true, () => 0)).toBe(
+      FREQUENCY_RANGES.medium[0],
+    )
+    expect(scheduledDropDelay('fast', 'half', true, () => 1)).toBe(
+      FREQUENCY_RANGES.fast[1],
+    )
+  })
+
+  it('defines dissipate wait from the shared lifetime and quiet pause', () => {
+    expect(scheduledDropDelay('slow', 'normal', true)).toBe(
+      WATER_RIPPLE_LIFETIME_SECONDS * 1_000 + WATER_DISSIPATE_PAUSE_MS,
+    )
   })
 })
 

@@ -16,20 +16,20 @@ import type {
 import {
   getWaveAge,
   probeWebGL,
-  randomDropDelay,
   randomWaveAmplitude,
   resolveDropPosition,
+  scheduledDropDelay,
   computeTextureDimensions,
   computeWaterViewportLayout,
   scaleCameraToRenderWidth,
   INTENSITY_AMPLITUDE,
+  WATER_RIPPLE_LIFETIME_SECONDS,
   WATER_TEXTURE_MAX_DIM,
   WAVE_SPEED_MULTIPLIER,
 } from './waterUtils'
 
 const MAX_WAVES = 12
 const PLANE_SEGMENTS = 512
-const RIPPLE_LIFETIME_SECONDS = 9
 
 const WATER_VERTEX_SHADER = `
 uniform float uTime;
@@ -43,7 +43,7 @@ varying float vHeight;
 
 float waveH(vec2 p, vec4 w, float t) {
   float age = (t - w.z) * uWaveSpeed;
-  if (age < 0.0 || age > 9.0) return 0.0;
+  if (age < 0.0 || age > ${WATER_RIPPLE_LIFETIME_SECONDS.toFixed(1)}) return 0.0;
   float dist = length(p - w.xy);
   float env = exp(-(age * 0.35 + dist * 1.1)) * w.w;
   return sin((dist - age * 0.55) * 34.0) * env;
@@ -495,12 +495,18 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
       }
     }
 
-    const scheduleRipple = () => {
+    const scheduleRipple = (waitForDissipation = false) => {
       if (prefersReducedMotion) return
+      if (rippleTimeoutId !== undefined) clearTimeout(rippleTimeoutId)
+      const currentPrefs = prefsRef.current
       rippleTimeoutId = window.setTimeout(() => {
         triggerDrop()
-        scheduleRipple()
-      }, randomDropDelay(prefsRef.current.waterDropFrequency))
+        scheduleRipple(true)
+      }, scheduledDropDelay(
+        currentPrefs.waterDropFrequency,
+        currentPrefs.waterWaveSpeed,
+        waitForDissipation,
+      ))
     }
 
     let initialized = false
@@ -553,6 +559,7 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
       if (!hit) return
       const localPoint = waterMesh.worldToLocal(hit.point.clone())
       addRipple(localPoint.x, -localPoint.z, 0.95)
+      if (prefsRef.current.waterDropFrequency === 'slow') scheduleRipple(true)
     }
 
     container.addEventListener('pointerdown', handlePointerDown)
@@ -577,7 +584,7 @@ export default function WaterScreensaver(props: WaterScreensaverProps) {
           getWaveAge(
             time - waves[index].startTime,
             prefsRef.current.waterWaveSpeed,
-          ) > RIPPLE_LIFETIME_SECONDS
+          ) > WATER_RIPPLE_LIFETIME_SECONDS
         ) {
           waves.splice(index, 1)
         }
