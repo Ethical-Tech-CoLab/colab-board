@@ -40,7 +40,7 @@ describe('live session operation protocol', () => {
     const next = withNote(board, note)
     const patch = createLiveBoardPatch(board, next, 'patch-1', 200)
 
-    expect(LIVE_SESSION_PROTOCOL).toBe('ethical-tech-colab-live-v3')
+    expect(LIVE_SESSION_PROTOCOL).toBe('ethical-tech-colab-live-v4')
     expect(patch).toMatchObject({
       id: 'patch-1',
       sentAt: 200,
@@ -52,6 +52,94 @@ describe('live session operation protocol', () => {
     expect('item' in patch!.timeline[0]).toBe(false)
     expect(isLiveBoardPatch(JSON.parse(JSON.stringify(patch)))).toBe(true)
     expect(applyLiveBoardPatch(board, patch!)).toEqual(next)
+  })
+
+  it('synchronizes layer ordering without retransmitting unchanged items', () => {
+    const board = createBoard()
+    const back = createNote(20, 30)
+    const front = createNote(300, 180)
+    const withItems = withNote(withNote(board, back), front)
+    const reorderedAt = withItems.updatedAt + 1
+    const reordered: BoardDocument = {
+      ...withItems,
+      updatedAt: reorderedAt,
+      items: [front, back],
+      timeline: [
+        ...withItems.timeline,
+        {
+          id: 'reorder-back',
+          type: 'reorder',
+          at: reorderedAt,
+          itemId: back.id,
+          toIndex: 1,
+        },
+      ],
+    }
+
+    const patch = createLiveBoardPatch(
+      withItems,
+      reordered,
+      'patch-order',
+      reorderedAt,
+    )
+    expect(patch).toMatchObject({
+      id: 'patch-order',
+      upserts: [],
+      deletes: [],
+      timeline: [
+        {
+          id: 'reorder-back',
+          type: 'reorder',
+          itemId: back.id,
+          toIndex: 1,
+        },
+      ],
+    })
+    expect(isLiveBoardPatch(patch)).toBe(true)
+    expect(applyLiveBoardPatch(withItems, patch!)).toEqual(reordered)
+  })
+
+  it('preserves operation order when a layer move and deletion share a patch', () => {
+    const initial = createBoard()
+    const first = createNote(10, 10)
+    const second = createNote(20, 20)
+    const third = createNote(30, 30)
+    const fourth = createNote(40, 40)
+    const populated = [first, second, third, fourth].reduce(
+      (board, note, index) => withNote(board, note, `add-${index}`),
+      initial,
+    )
+    const changedAt = populated.updatedAt + 1
+    const next: BoardDocument = {
+      ...populated,
+      updatedAt: changedAt,
+      items: [fourth, second, third],
+      timeline: [
+        ...populated.timeline,
+        {
+          id: 'reorder-fourth',
+          type: 'reorder',
+          at: changedAt,
+          itemId: fourth.id,
+          toIndex: 1,
+        },
+        {
+          id: 'delete-first',
+          type: 'delete',
+          at: changedAt + 1,
+          itemId: first.id,
+        },
+      ],
+    }
+
+    const patch = createLiveBoardPatch(
+      populated,
+      next,
+      'patch-reorder-delete',
+      changedAt,
+    )
+
+    expect(applyLiveBoardPatch(populated, patch!)).toEqual(next)
   })
 
   it('merges concurrent changes to different objects in host order', () => {

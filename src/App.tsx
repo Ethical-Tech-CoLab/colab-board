@@ -688,6 +688,19 @@ function App() {
     [pushMutation],
   )
 
+  const reorderItem = useCallback(
+    (itemId: string, toIndex: number) => {
+      pushMutation({
+        id: createId('event'),
+        type: 'reorder',
+        at: Date.now(),
+        itemId,
+        toIndex,
+      })
+    },
+    [pushMutation],
+  )
+
   const undo = useCallback(() => {
     setBoard((current) => {
       const previous = past.current.at(-1)
@@ -1512,10 +1525,21 @@ function App() {
             selectedSpatialItem?.type === 'image' && (
             <ImageInspector
               item={selectedSpatialItem as ImageItem}
+              layerIndex={board.items.findIndex(
+                (item) => item.id === selectedSpatialItem.id,
+              )}
+              layerCount={board.items.length}
               onPreview={setCanvasImagePreview}
               onCommit={(item) => {
                 setCanvasImagePreview(null)
                 updateItem(item)
+              }}
+              onReorder={(toIndex) => {
+                if (canvasImagePreview) {
+                  updateItem(canvasImagePreview)
+                }
+                setCanvasImagePreview(null)
+                reorderItem(selectedSpatialItem.id, toIndex)
               }}
               onDelete={() => {
                 setCanvasImagePreview(null)

@@ -124,6 +124,13 @@ export type TimelineEvent =
     }
   | {
       id: string
+      type: 'reorder'
+      at: number
+      itemId: string
+      toIndex: number
+    }
+  | {
+      id: string
       type: 'clear'
       at: number
     }

@@ -894,6 +894,51 @@
   font-size: 9px;
 }
 
+.image-inspector-layers {
+  display: grid;
+  gap: 6px;
+  padding-top: 3px;
+}
+
+.image-inspector-layers > span {
+  display: flex;
+  color: var(--brand-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.image-inspector-layers output {
+  margin-left: auto;
+}
+
+.image-inspector-layers > div {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.image-inspector-layers button {
+  display: grid;
+  min-width: 0;
+  height: 34px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--brand-accent) 18%, transparent);
+  border-radius: 9px;
+  color: var(--brand-foreground);
+  background: color-mix(in srgb, var(--brand-accent) 7%, transparent);
+}
+
+.image-inspector-layers button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--brand-accent) 42%, transparent);
+  background: color-mix(in srgb, var(--brand-accent) 13%, transparent);
+}
+
+.image-inspector-layers button svg {
+  width: 16px;
+}
+
 .image-inspector-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;

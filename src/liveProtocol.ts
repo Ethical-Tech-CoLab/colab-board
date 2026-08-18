@@ -1,4 +1,4 @@
-import { isBoardDocument } from './board'
+import { isBoardDocument, reorderBoardItem } from './board'
 import type {
   BoardDocument,
   BoardItem,
@@ -7,7 +7,7 @@ import type {
   TimelineEvent,
 } from './types'
 
-export const LIVE_SESSION_PROTOCOL = 'ethical-tech-colab-live-v3'
+export const LIVE_SESSION_PROTOCOL = 'ethical-tech-colab-live-v4'
 
 export type LiveTimelineEvent =
   | {
@@ -22,6 +22,13 @@ export type LiveTimelineEvent =
       type: 'delete'
       at: number
       itemId: string
+    }
+  | {
+      id: string
+      type: 'reorder'
+      at: number
+      itemId: string
+      toIndex: number
     }
   | {
       id: string
@@ -128,6 +135,14 @@ function compactTimeline(
           at: event.at,
           itemId: event.itemId,
         }
+      case 'reorder':
+        return {
+          id: event.id,
+          type: 'reorder',
+          at: event.at,
+          itemId: event.itemId,
+          toIndex: event.toIndex,
+        }
       case 'clear':
         return { id: event.id, type: 'clear', at: event.at }
       case 'camera':
@@ -228,13 +243,43 @@ export function applyLiveBoardPatch(
 
   const upserts = new Map(patch.upserts.map((item) => [item.id, item]))
   const deletedIds = new Set(patch.deletes)
-  const existingIds = new Set(board.items.map((item) => item.id))
-  const items = board.items
+  let items = board.items
+  for (const event of patch.timeline) {
+    switch (event.type) {
+      case 'add':
+      case 'update': {
+        const item = event.item ?? upserts.get(event.itemId)
+        if (!item) break
+        const itemIndex = items.findIndex(
+          (candidate) => candidate.id === event.itemId,
+        )
+        items =
+          itemIndex >= 0
+            ? items.map((candidate, index) =>
+                index === itemIndex ? item : candidate,
+              )
+            : [...items, item]
+        break
+      }
+      case 'delete':
+        items = items.filter((item) => item.id !== event.itemId)
+        break
+      case 'reorder':
+        items = reorderBoardItem(items, event.itemId, event.toIndex)
+        break
+      case 'clear':
+        items = []
+        break
+      case 'camera':
+        break
+    }
+  }
+  items = items
     .filter((item) => !deletedIds.has(item.id))
     .map((item) => upserts.get(item.id) ?? item)
-
+  const appliedIds = new Set(items.map((item) => item.id))
   for (const item of patch.upserts) {
-    if (!existingIds.has(item.id)) items.push(item)
+    if (!appliedIds.has(item.id)) items.push(item)
   }
 
   const eventIds = new Set(board.timeline.map((event) => event.id))
@@ -258,6 +303,16 @@ export function applyLiveBoardPatch(
             type: 'delete',
             at: event.at,
             itemId: event.itemId,
+          },
+        ]
+      case 'reorder':
+        return [
+          {
+            id: event.id,
+            type: 'reorder',
+            at: event.at,
+            itemId: event.itemId,
+            toIndex: event.toIndex,
           },
         ]
       case 'clear':
@@ -349,6 +404,17 @@ function isTimelineEvent(value: unknown): value is LiveTimelineEvent {
     )
   }
   if (event.type === 'delete') return typeof event.itemId === 'string'
+  if (event.type === 'reorder') {
+    const reorderEvent = value as Partial<
+      Extract<LiveTimelineEvent, { type: 'reorder' }>
+    >
+    return (
+      typeof reorderEvent.itemId === 'string' &&
+      typeof reorderEvent.toIndex === 'number' &&
+      Number.isInteger(reorderEvent.toIndex) &&
+      reorderEvent.toIndex >= 0
+    )
+  }
   if (event.type === 'camera') {
     return (
       typeof event.camera?.x === 'number' &&

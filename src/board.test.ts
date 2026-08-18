@@ -17,6 +17,7 @@ import {
   isBoardDocument,
   placeItemsAtCenter,
   replayAt,
+  reorderBoardItem,
   sparkleHue,
   sparkleOffset,
   sparkleTrailHue,
@@ -70,6 +71,7 @@ describe('board document events', () => {
       at: 1_000,
       item: note,
     })
+
     expect(added).toEqual([note])
 
     const updatedNote = { ...note, text: 'A stronger thought' }
@@ -92,6 +94,53 @@ describe('board document events', () => {
     expect(
       applyItemEvent(added, { id: 'event-4', type: 'clear', at: 1_400 }),
     ).toEqual([])
+  })
+
+  it('reorders an item across the complete back-to-front board stack', () => {
+    const items = [note, stroke, { ...note, id: 'note-2' }]
+    const movedForward = reorderBoardItem(items, note.id, 1)
+    expect(movedForward.map((item) => item.id)).toEqual([
+      stroke.id,
+      note.id,
+      'note-2',
+    ])
+    expect(items.map((item) => item.id)).toEqual([
+      note.id,
+      stroke.id,
+      'note-2',
+    ])
+
+    const sentToFront = reorderBoardItem(items, note.id, 99)
+    expect(sentToFront.map((item) => item.id)).toEqual([
+      stroke.id,
+      'note-2',
+      note.id,
+    ])
+    expect(reorderBoardItem(items, 'missing', 0)).toBe(items)
+    expect(reorderBoardItem(items, note.id, 0)).toBe(items)
+  })
+
+  it('replays layer-order changes at their recorded time', () => {
+    const timeline: TimelineEvent[] = [
+      { id: 'add-note', type: 'add', at: 1_000, item: note },
+      { id: 'add-stroke', type: 'add', at: 1_100, item: stroke },
+      {
+        id: 'reorder-note',
+        type: 'reorder',
+        at: 1_200,
+        itemId: note.id,
+        toIndex: 1,
+      },
+    ]
+
+    expect(replayAt(timeline, 150).items.map((item) => item.id)).toEqual([
+      note.id,
+      stroke.id,
+    ])
+    expect(replayAt(timeline, 250).items.map((item) => item.id)).toEqual([
+      stroke.id,
+      note.id,
+    ])
   })
 
   it('reconstructs a pressure stroke progressively', () => {

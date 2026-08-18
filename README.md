@@ -19,8 +19,8 @@ A local-first spatial thinking surface for touch displays, classrooms, studios, 
   drag-and-drop at an adjustable work-plane depth
 - Spatial selection, orbit, Surface Pen barrel movement, Surface Dial ink-size
   adjustment, and responsive controls that stay clear of the drawing rail
-- Images with selected-image transparency and aspect-ratio-locked sizing, plus
-  eraser, selection, undo, and redo
+- Images with selected-image transparency, aspect-ratio-locked sizing, and
+  back-to-front Canvas layer controls, plus eraser, selection, undo, and redo
 - IndexedDB autosave with portable JSON project files and PNG export
 - Branded PNG exports with a visible live-site link and scannable return QR code
 - Export footers include the active theme logo or mark and size the return QR to

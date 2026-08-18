@@ -99,11 +99,29 @@ export function applyItemEvent(
       )
     case 'delete':
       return items.filter((item) => item.id !== event.itemId)
+    case 'reorder':
+      return reorderBoardItem(items, event.itemId, event.toIndex)
     case 'clear':
       return []
     case 'camera':
       return items
   }
+}
+
+export function reorderBoardItem(
+  items: BoardItem[],
+  itemId: string,
+  toIndex: number,
+): BoardItem[] {
+  const fromIndex = items.findIndex((item) => item.id === itemId)
+  if (fromIndex < 0 || items.length < 2) return items
+  const targetIndex = Math.max(0, Math.min(items.length - 1, Math.round(toIndex)))
+  if (fromIndex === targetIndex) return items
+
+  const next = [...items]
+  const [item] = next.splice(fromIndex, 1)
+  next.splice(targetIndex, 0, item)
+  return next
 }
 
 export function replayAt(

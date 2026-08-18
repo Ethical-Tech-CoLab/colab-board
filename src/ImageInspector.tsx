@@ -1,5 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
-import { ImageIcon, Scaling, SunMedium, Trash2, Undo2, X } from 'lucide-react'
+import {
+  BringToFront,
+  ImageIcon,
+  MoveDown,
+  MoveUp,
+  Scaling,
+  SendToBack,
+  SunMedium,
+  Trash2,
+  Undo2,
+  X,
+} from 'lucide-react'
 import { getImageOpacity, withImageEdit } from './board'
 import type { ImageItem } from './types'
 
@@ -8,16 +19,22 @@ const IMAGE_MAX_SIZE = 2400
 
 interface ImageInspectorProps {
   item: ImageItem
+  layerIndex: number
+  layerCount: number
   onPreview: (item: ImageItem) => void
   onCommit: (item: ImageItem) => void
+  onReorder: (toIndex: number) => void
   onDelete: () => void
   onClose: () => void
 }
 
 export default function ImageInspector({
   item,
+  layerIndex,
+  layerCount,
   onPreview,
   onCommit,
+  onReorder,
   onDelete,
   onClose,
 }: ImageInspectorProps) {
@@ -132,6 +149,53 @@ export default function ImageInspector({
         <p className="image-inspector-size-hint">
           {widthPx} × {heightPx} px · aspect ratio locked
         </p>
+
+        <div className="image-inspector-layers">
+          <span>
+            Layer
+            <output>
+              {layerIndex + 1} of {layerCount}
+            </output>
+          </span>
+          <div>
+            <button
+              type="button"
+              aria-label="Send to Back"
+              title="Send to Back"
+              disabled={layerIndex <= 0}
+              onClick={() => onReorder(0)}
+            >
+              <SendToBack />
+            </button>
+            <button
+              type="button"
+              aria-label="Bring to Front"
+              title="Bring to Front"
+              disabled={layerIndex >= layerCount - 1}
+              onClick={() => onReorder(layerCount - 1)}
+            >
+              <BringToFront />
+            </button>
+            <button
+              type="button"
+              aria-label="Move Back"
+              title="Move Back"
+              disabled={layerIndex <= 0}
+              onClick={() => onReorder(layerIndex - 1)}
+            >
+              <MoveDown />
+            </button>
+            <button
+              type="button"
+              aria-label="Move Forward"
+              title="Move Forward"
+              disabled={layerIndex >= layerCount - 1}
+              onClick={() => onReorder(layerIndex + 1)}
+            >
+              <MoveUp />
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="image-inspector-actions">
